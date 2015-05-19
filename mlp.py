@@ -67,7 +67,7 @@ def tostr(s):
 
 #data = generate_data(200)
 
-NTRAIN = 100
+NTRAIN = 50000
 NTEST = 50
 EPOCHS = 50
 
@@ -76,13 +76,13 @@ X = []
 X_hog = []
 for i in xrange(len(pathes)):
     image = skimage.io.imread(pathes[i])
-   # hog = skimage.feature.hog(skimage.color.rgb2grey(image))
+    hog = skimage.feature.hog(skimage.color.rgb2grey(image) )
     X.append(float32(image/float32(255)))
-   # X_hog.append(float32(hog))
+    X_hog.append(float32(hog))
 
 
 X = np.asarray(X).reshape((-1, 3, 32, 32))
-#X_hog = np.asarray(X_hog)
+X_hog = np.asarray(X_hog)
 
 _y = read_csv('trainLabels.csv', ',').label.apply(tonum).values
 y = np.zeros((len(X), 10))
@@ -97,10 +97,13 @@ y = float32(y)
 
 
 lin = layers.InputLayer((None, 3, 32, 32))
+lhog = layers.InputLayer((None, 324))
+
 h1 = layers.DenseLayer(lin, 50)
-h2 = layers.DenseLayer(h1, 40)
+merge = layers.ConcatLayer([h1, lhog])
+h2 = layers.DenseLayer(merge, 40)
 h3 = layers.DenseLayer(h2, 20)
-h4 = layers.DenseLayer(h3, 10)
+h4 = layers.DenseLayer(h3, 20)
 h5 = layers.DenseLayer(h4, 10, nonlinearity=nonlinearities.softmax)
 
 _layers = [h1, h2, h3, h4, h5]
@@ -142,9 +145,8 @@ for l in _layers:
 
 '''
 
-fit(h5, X, y, 0.1, EPOCHS)
 
-
+fit(lin, lhog, h5, X, X_hog, y, eval_size=0.1, num_epochs=EPOCHS, learning_rate=0.0001)
 
 
 

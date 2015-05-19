@@ -13,9 +13,10 @@ import time
 from sklearn.cross_validation import KFold
 import numpy as np
 from numpy import *
+import myObjective
 
-NUM_EPOCHS = 500
-BATCH_SIZE = 10
+
+BATCH_SIZE = 100
 LEARNING_RATE = 0.001
 MOMENTUM = 0.9
 
@@ -28,17 +29,19 @@ def float32(x):
 
 
 
-def load_data(X, y, eval_size=0.1):
+def load_data(X, X_hog, y, eval_size=0.1):
     """Get data with labels, split into training, validation and test set."""
     kf = KFold(y.shape[0], round(1. / eval_size))
     train_indices, valid_indices = next(iter(kf))
-    X_train, y_train = X[train_indices], y[train_indices]
-    X_valid, y_valid = X[valid_indices], y[valid_indices]
+    X_train, X_hog_train, y_train = X[train_indices], X_hog[train_indices], y[train_indices]
+    X_valid, X_hog_valid, y_valid = X[valid_indices], X_hog[valid_indices], y[valid_indices]
 
     return dict(
         X_train=theano.shared(lasagne.utils.floatX(X_train)),
+        X_hog_train=theano.shared(lasagne.utils.floatX(X_hog_train)),
         y_train=T.cast(theano.shared(y_train),  'float32'),
         X_valid=theano.shared(lasagne.utils.floatX(X_valid)),
+        X_hog_valid=theano.shared(lasagne.utils.floatX(X_hog_valid)),
         y_valid=T.cast(theano.shared(y_valid), 'float32'),
         num_examples_train=X_train.shape[0],
         num_examples_valid=X_valid.shape[0]
@@ -53,27 +56,31 @@ def load_data(X, y, eval_size=0.1):
 
 
 
-def create_iter_functions(dataset, output_layer,
-                          X_tensor_type=T.tensor4,
+def create_iter_functions(inp1, inp2, dataset, output_layer,
                           batch_size=BATCH_SIZE,
-                          learning_rate=LEARNING_RATE):
+                          learning_rate=0.0001):
     """Create functions for training, validation and testing to iterate one
        epoch.
     """
     batch_index = T.iscalar('batch_index')
-    X_batch = X_tensor_type('x')
-    y_batch = T.matrix ('y')
+    X_batch = T.tensor4('x')
+    X_hog_batch = T.matrix('x1')
+    y_batch = T.matrix('y')
     batch_slice = slice(batch_index * batch_size,
                         (batch_index + 1) * batch_size)
 
-    objective = lasagne.objectives.Objective(output_layer,
-        loss_function=lasagne.objectives.categorical_crossentropy)
+    objective = myObjective.Objective(output_layer,
+        loss_function=lasagne.objectives.mse)
 
-    loss_train = objective.get_loss(X_batch, target=y_batch)
-    loss_eval = objective.get_loss(X_batch, target=y_batch,
+
+    inp1.input_var = X_batch
+    inp2.input_var = X_hog_batch
+
+    loss_train = objective.get_loss(target=y_batch)
+    loss_eval = objective.get_loss(target=y_batch,
                                    deterministic=True)
 
-    pred = output_layer.get_output(X_batch, deterministic=True)
+    pred = output_layer.get_output(deterministic=True)
 
     acs = T.cast([T.eq(pred[i].argmax(), y_batch[i].argmax()) for i in xrange(batch_size)], 'float32')
     accuracy = T.mean(acs)
@@ -87,6 +94,7 @@ def create_iter_functions(dataset, output_layer,
         updates=updates,
         givens={
             X_batch: dataset['X_train'][batch_slice],
+            X_hog_batch: dataset['X_hog_train'][batch_slice],
             y_batch: dataset['y_train'][batch_slice],
         },
     )
@@ -95,6 +103,7 @@ def create_iter_functions(dataset, output_layer,
         [batch_index], [loss_eval, accuracy],
         givens={
             X_batch: dataset['X_valid'][batch_slice],
+            X_hog_batch: dataset['X_hog_valid'][batch_slice],
             y_batch: dataset['y_valid'][batch_slice],
         },
     )
@@ -139,9 +148,9 @@ def train(iter_funcs, dataset, batch_size=BATCH_SIZE):
         }
 
 
-def fit(output_layer, X, y, eval_size=0.1, num_epochs=NUM_EPOCHS):
-    dataset = load_data(X, y, eval_size)
-    iter_funcs = create_iter_functions(dataset, output_layer)
+def fit(inp1, inp2, output_layer, X1, X_hog, y, eval_size=0.1, num_epochs=100, learning_rate = 0.001):
+    dataset = load_data(X1 ,X_hog, y, eval_size)
+    iter_funcs = create_iter_functions(inp1, inp2, dataset, output_layer, learning_rate=learning_rate)
 
     print("Starting training...")
     now = time.time()
@@ -152,7 +161,7 @@ def fit(output_layer, X, y, eval_size=0.1, num_epochs=NUM_EPOCHS):
             now = time.time()
             print("  training loss:\t\t{:.6f}".format(epoch['train_loss']))
             print("  validation loss:\t\t{:.6f}".format(epoch['valid_loss']))
-            print("  validation accuracy:\t\t{:.2f} %%".format(
+            print("  validation accuracy:\t\t{:.5f} %".format(
                 epoch['valid_accuracy'] * 100))
 
             if epoch['number'] >= num_epochs:
