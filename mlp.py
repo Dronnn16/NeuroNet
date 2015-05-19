@@ -146,7 +146,7 @@ for l in _layers:
 '''
 
 
-fit(lin, lhog, h5, X, X_hog, y, eval_size=0.1, num_epochs=EPOCHS, learning_rate=0.0001)
+fit(lin, lhog, h5, X, X_hog, y, eval_size=0.1, num_epochs=EPOCHS, l_rate_start = 0.1, l_rate_stop = 0.00001)
 
 
 

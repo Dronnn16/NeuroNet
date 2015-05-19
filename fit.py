@@ -57,8 +57,7 @@ def load_data(X, X_hog, y, eval_size=0.1):
 
 
 def create_iter_functions(inp1, inp2, dataset, output_layer,
-                          batch_size=BATCH_SIZE,
-                          learning_rate=0.0001):
+                          batch_size=BATCH_SIZE):
     """Create functions for training, validation and testing to iterate one
        epoch.
     """
@@ -68,6 +67,7 @@ def create_iter_functions(inp1, inp2, dataset, output_layer,
     y_batch = T.matrix('y')
     batch_slice = slice(batch_index * batch_size,
                         (batch_index + 1) * batch_size)
+    learning_rate = T.fscalar('rate')
 
     objective = myObjective.Objective(output_layer,
         loss_function=lasagne.objectives.mse)
@@ -90,7 +90,7 @@ def create_iter_functions(inp1, inp2, dataset, output_layer,
         loss_train, all_params, learning_rate)
 
     iter_train = theano.function(
-        [batch_index], loss_train,
+        [batch_index, learning_rate], loss_train,
         updates=updates,
         givens={
             X_batch: dataset['X_train'][batch_slice],
@@ -115,17 +115,18 @@ def create_iter_functions(inp1, inp2, dataset, output_layer,
     )
 
 
-def train(iter_funcs, dataset, batch_size=BATCH_SIZE):
+def train(iter_funcs, dataset, ls, batch_size=BATCH_SIZE):
     """Train the model with `dataset` with mini-batch training. Each
        mini-batch has `batch_size` recordings.
     """
+
     num_batches_train = dataset['num_examples_train'] // batch_size
     num_batches_valid = dataset['num_examples_valid'] // batch_size
 
     for epoch in itertools.count(1):
         batch_train_losses = []
         for b in range(num_batches_train):
-            batch_train_loss = iter_funcs['train'](b)
+            batch_train_loss = iter_funcs['train'](b, ls[epoch-1])
             batch_train_losses.append(batch_train_loss)
 
         avg_train_loss = np.mean(batch_train_losses)
@@ -148,14 +149,16 @@ def train(iter_funcs, dataset, batch_size=BATCH_SIZE):
         }
 
 
-def fit(inp1, inp2, output_layer, X1, X_hog, y, eval_size=0.1, num_epochs=100, learning_rate = 0.001):
+def fit(inp1, inp2, output_layer, X1, X_hog, y, eval_size=0.1, num_epochs=100, l_rate_start = 0.1, l_rate_stop = 0.00001):
     dataset = load_data(X1 ,X_hog, y, eval_size)
-    iter_funcs = create_iter_functions(inp1, inp2, dataset, output_layer, learning_rate=learning_rate)
+    iter_funcs = create_iter_functions(inp1, inp2, dataset, output_layer)
+    ls = np.linspace(l_rate_start, l_rate_stop, num_epochs)
+
 
     print("Starting training...")
     now = time.time()
     try:
-        for epoch in train(iter_funcs, dataset):
+        for epoch in train(iter_funcs, dataset, ls):
             print("Epoch {} of {} took {:.3f}s".format(
                 epoch['number'], num_epochs, time.time() - now))
             now = time.time()
