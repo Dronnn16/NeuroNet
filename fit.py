@@ -97,6 +97,7 @@ def create_iter_functions(inp1, inp2, dataset, output_layer,
             X_hog_batch: dataset['X_hog_train'][batch_slice],
             y_batch: dataset['y_train'][batch_slice],
         },
+        allow_input_downcast=True
     )
 
     iter_valid = theano.function(
