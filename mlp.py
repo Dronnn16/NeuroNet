@@ -67,16 +67,16 @@ def tostr(s):
 
 #data = generate_data(200)
 
-NTRAIN = 50000
+NTRAIN = 1000
 NTEST = 50
-EPOCHS = 50
+EPOCHS = 2
 
 pathes = ["train/%s.png" %  (i) for i in range(1, NTRAIN+1)]
 X = []
 X_hog = []
 for i in xrange(len(pathes)):
     image = skimage.io.imread(pathes[i])
-    hog = skimage.feature.hog(skimage.color.rgb2grey(image) )
+    hog = skimage.feature.hog(skimage.color.rgb2grey(image))
     X.append(float32(image/float32(255)))
     X_hog.append(float32(hog))
 
@@ -160,12 +160,11 @@ TEST = []
 f.write('id,label\n')
 for i in xrange(len(pathes)):
     image = float32(skimage.io.imread(pathes[i])/float32(255))
-    #hog = np.squeeze(np.asarray(skimage.feature.hog(skimage.color.rgb2grey(image)).ravel())).reshape(-1)
-    #TEST.append(float32(image.ravel())/float32(255))
-  #  X_hog.append(float32(hog))
+    hog = float32(skimage.feature.hog(skimage.color.rgb2grey(image)))
     image = np.asarray(image.reshape(3, 32, 32))
-
-    ans = theano.function([], h5.get_output(np.asarray([image]),  deterministic=True))
+    lin.input_var = np.asarray([image])
+    lhog.input_var = np.asarray([hog])
+    ans = theano.function([], h5.get_output(deterministic=True))
     s = tostr(ans().argmax())
     f.write('%d,%s\n' % (i+1, s))
     print ('%d,%s\n' % (i+1, s))
