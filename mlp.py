@@ -100,16 +100,18 @@ _layers = [h1, h2, h3, h4, h5]
 
 
 
-lin.input_var = X
-lhog.input_var = X
-Xi = X
+Xi =  np.asarray([(t.ravel()) for t in X])
 for l in _layers:
+    if (l.name != 'merge'):
 
-    fit(lin, lhog, l, X, X_hog, Xi, eval_size=0.1, num_epochs=EPOCHS, l_rate_start = 0.01, l_rate_stop = 0.00001)
+        out = layers.DenseLayer(l, Xi.shape[1])
+        fit(lin = lin, lhog = lhog, output_layer = out, X1=X, X_hog=X_hog, y=Xi, eval_size=0.1, num_epochs=100,
+            l_rate_start = 0.01, l_rate_stop = 0.00001, learn_only_last_layer = True)
 
-    x = T.vector()
-    out = theano.function([x], l.get_output_for(x))
-    Xi = np.asarray([out(t.ravel())[0] for t in Xi])
+    lin.input_var = X
+    lhog.input_var = X_hog
+    out = theano.function([], l.get_output())
+    Xi = out()
 
 
 
@@ -120,29 +122,20 @@ fit(lin, lhog, h5, X, X_hog, y, eval_size=0.1, num_epochs=EPOCHS, l_rate_start =
 
 
 f = open('ans.txt', 'w')
+f.write('id,label\n')
 
 pathes = ["test/%s.png" %  (i) for i in range(1, 150001)]
-
-f.write('id,label\n')
 TEST, TEST_hog = load_test(pathes)
-
 ANSES = pred (TEST, TEST_hog, lin, lhog, h5)
-
 for ans, i in zip (ANSES, itertools.count(1)):
     s = tostr(ans.argmax())
     f.write('%d,%s\n' % (i, s))
     print ('%d,%s\n' % (i, s))
 
 
-f = open('ans.txt', 'w')
-
 pathes = ["test/%s.png" %  (i) for i in range(150001, 300001)]
-
-f.write('id,label\n')
 TEST, TEST_hog = load_test(pathes)
-
 ANSES = pred (TEST, TEST_hog, lin, lhog, h5)
-
 for ans, i in zip (ANSES, itertools.count(150001)):
     s = tostr(ans.argmax())
     f.write('%d,%s\n' % (i, s))

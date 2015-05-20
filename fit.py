@@ -57,7 +57,7 @@ def load_data(X, X_hog, y, eval_size=0.1):
 
 
 def create_iter_functions(inp1, inp2, dataset, output_layer,
-                          batch_size=BATCH_SIZE):
+                          batch_size=BATCH_SIZE, learn_only_last_layer = False):
     """Create functions for training, validation and testing to iterate one
        epoch.
     """
@@ -85,7 +85,7 @@ def create_iter_functions(inp1, inp2, dataset, output_layer,
     acs = T.cast([T.eq(pred[i].argmax(), y_batch[i].argmax()) for i in xrange(batch_size)], 'float32')
     accuracy = T.mean(acs)
 
-    all_params = lasagne.layers.get_all_params(output_layer)
+    all_params = lasagne.layers.get_all_params(output_layer) if learn_only_last_layer else  output_layer.get_params()
     updates = lasagne.updates.adagrad(
         loss_train, all_params, learning_rate)
 
@@ -152,9 +152,10 @@ def train(iter_funcs, dataset, ls, batch_size=BATCH_SIZE):
         }
 
 
-def fit(lin, lhog, output_layer, X1, X_hog, y, eval_size=0.1, num_epochs=100, l_rate_start = 0.1, l_rate_stop = 0.00001):
+def fit(lin, lhog, output_layer, X1, X_hog, y, eval_size=0.1, num_epochs=100,
+        l_rate_start = 0.1, l_rate_stop = 0.00001, learn_only_last_layer=False):
     dataset = load_data(X1 ,X_hog, y, eval_size)
-    iter_funcs = create_iter_functions(lin, lhog, dataset, output_layer)
+    iter_funcs = create_iter_functions(lin, lhog, dataset, output_layer, learn_only_last_layer =learn_only_last_layer)
     ls = np.linspace(l_rate_start, l_rate_stop, num_epochs)
 
 
@@ -167,7 +168,7 @@ def fit(lin, lhog, output_layer, X1, X_hog, y, eval_size=0.1, num_epochs=100, l_
             now = time.time()
             print("  training loss:\t\t{:.6f}".format(epoch['train_loss']))
             print("  validation loss:\t\t{:.6f}".format(epoch['valid_loss']))
-            print("  validation accuracy:\t\t{:.5f} %".format(
+            if not learn_only_last_layer :print("  validation accuracy:\t\t{:.5f} %".format(
                 epoch['valid_accuracy'] * 100))
 
             if epoch['number'] >= num_epochs:
