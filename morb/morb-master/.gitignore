@@ -1,5 +1,0 @@
-*.pyc
-*~
-tmp_*
-mnist.pkl.gz
-datasets

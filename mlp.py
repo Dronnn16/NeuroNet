@@ -65,7 +65,6 @@ def tostr(s):
     return t[s+1]
 
 
-#data = generate_data(200)
 
 NTRAIN = 1000
 NTEST = 50
@@ -146,7 +145,7 @@ for l in _layers:
 '''
 
 
-fit(lin, lhog, h5, X, X_hog, y, eval_size=0.1, num_epochs=EPOCHS, l_rate_start = 0.01, l_rate_stop = 0.00001)
+fit(lin, lhog, h5, X, X_hog, y, eval_size=0.1, num_epochs=EPOCHS, l_rate_start = 0.1, l_rate_stop = 0.00001)
 
 
 
@@ -173,7 +172,7 @@ pred = theano.function([], h5.get_output(deterministic=True))
 ANSES = pred()
 
 f.write('id,label\n')
-for ans in ANSES:
+for ans, i in zip (ANSES, xrange (len(ANSES))):
     s = tostr(ans.argmax())
     f.write('%d,%s\n' % (i+1, s))
     print ('%d,%s\n' % (i+1, s))
