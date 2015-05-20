@@ -185,5 +185,5 @@ def pred (TEST, TEST_hog, lin, lhog, output_layer):
     lhog.input_var = TEST_hog
     print ('start')
     pred = theano.function([], output_layer.get_output(deterministic=True))
-    ANSES = pred()
+    return  pred()
 

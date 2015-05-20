@@ -57,7 +57,7 @@ def tostr(s):
 
 
 
-NTRAIN = 50000
+NTRAIN = 1000
 NTEST = 300000
 EPOCHS = 10
 
@@ -100,40 +100,17 @@ _layers = [h1, h2, h3, h4, h5]
 
 
 
-'''
+lin.input_var = X
+lhog.input_var = X
 Xi = X
-shape = lin.get_output_shape()
 for l in _layers:
-    ennet = NeuralNet(
-        layers=[
-            ('input', layers.InputLayer),
-            ('hidden', layers.DenseLayer),
-            ('output', layers.DenseLayer)
-            ],
-        input_shape = shape,
-        hidden_num_units = l.num_units, hidden_W = l.W, hidden_b = l.b,
-        output_nonlinearity=None,
-        output_num_units=np.product(shape[1:]),
-        update=adagrad,
-        update_learning_rate=theano.shared(float32(0.01)),
-        on_epoch_finished=[
-            AdjustVariable('update_learning_rate', start=0.03, stop=0.0001),
-            ],
-        objective=myObjective.Objective,
-        eval_size=float32(0.1),
-        regression=True,
-        max_epochs=100,
-        verbose=1,
-    )
 
-    ennet.fit(Xi, Xi.reshape((-1, np.product(shape[1:]))))
+    fit(lin, lhog, l, X, X_hog, Xi, eval_size=0.1, num_epochs=EPOCHS, l_rate_start = 0.01, l_rate_stop = 0.00001)
 
     x = T.vector()
     out = theano.function([x], l.get_output_for(x))
     Xi = np.asarray([out(t.ravel())[0] for t in Xi])
-    shape = l.get_output_shape()
 
-'''
 
 
 fit(lin, lhog, h5, X, X_hog, y, eval_size=0.1, num_epochs=EPOCHS, l_rate_start = 0.01, l_rate_stop = 0.00001)
