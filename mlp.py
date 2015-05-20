@@ -18,16 +18,9 @@ import theano.tensor as T
 import time
 import matplotlib.pyplot as plt
 plt.ion()
-#from utils import generate_data, get_context
-from AV import AdjustVariable
-from Flip import FlipBatchIterator
-from lasagne.layers import  *
-from lasagne.regularization import l2
-import myObjective
-import myAutoencoder
-from myAutoencoder import AutoEncoder
-from fit import fit
-
+from fit import fit, pred
+import itertools
+from load_data import load_test
 
 def float32(x):
     return np.cast['float32'](x)
@@ -64,9 +57,9 @@ def tostr(s):
 
 
 
-NTRAIN = 1000
+NTRAIN = 50000
 NTEST = 300000
-EPOCHS = 2
+EPOCHS = 10
 
 pathes = ["train/%s.png" %  (i) for i in range(1, NTRAIN+1)]
 X = []
@@ -78,7 +71,7 @@ for i in xrange(len(pathes)):
     X_hog.append(float32(hog))
 
 
-X = np.asarray(X)#.reshape((-1, 3, 32, 32))
+X = np.asarray(X).reshape((-1, 3, 32, 32))
 X_hog = np.asarray(X_hog)
 
 _y = read_csv('trainLabels.csv', ',').label.apply(tonum).values
@@ -96,11 +89,11 @@ y = float32(y)
 lin = layers.InputLayer((None, 3, 32, 32))
 lhog = layers.InputLayer((None, 324))
 
-h1 = layers.DenseLayer(lin, 1000)
+h1 = layers.DenseLayer(lin, 50)
 #merge = layers.ConcatLayer([h1, lhog])
-h2 = layers.DenseLayer(h1, 500)
-h3 = layers.DenseLayer(h2, 200)
-h4 = layers.DenseLayer(h3, 50)
+h2 = layers.DenseLayer(h1, 40)
+h3 = layers.DenseLayer(h2, 20)
+h4 = layers.DenseLayer(h3, 20)
 h5 = layers.DenseLayer(h4, 10, nonlinearity=nonlinearities.softmax)
 
 _layers = [h1, h2, h3, h4, h5]
@@ -143,7 +136,7 @@ for l in _layers:
 '''
 
 
-fit(lin, lhog, h5, X, X_hog, y, eval_size=0.1, num_epochs=EPOCHS, l_rate_start = 0.1, l_rate_stop = 0.00001)
+fit(lin, lhog, h5, X, X_hog, y, eval_size=0.1, num_epochs=EPOCHS, l_rate_start = 0.01, l_rate_stop = 0.00001)
 
 
 
@@ -151,28 +144,29 @@ fit(lin, lhog, h5, X, X_hog, y, eval_size=0.1, num_epochs=EPOCHS, l_rate_start =
 
 f = open('ans.txt', 'w')
 
-pathes = ["test/%s.png" %  (i) for i in range(1, NTEST+1)]
-TEST = []
-TEST_hog = []
-
-for i in xrange(len(pathes)):
-    print ('loading %s\n' % pathes[i])
-    image = skimage.io.imread(pathes[i])
-    hog = skimage.feature.hog(skimage.color.rgb2grey(image))
-    TEST.append(float32(image/float32(255)))
-    TEST_hog.append(float32(hog))
-
-TEST = np.asarray(TEST).reshape((-1, 3, 32, 32))
-TEST_hog = np.asarray(TEST_hog)
-print ('getting ready')
-lin.input_var = TEST
-lhog.input_var = TEST_hog
-print ('start')
-pred = theano.function([], h5.get_output(deterministic=True))
-ANSES = pred()
+pathes = ["test/%s.png" %  (i) for i in range(1, 150001)]
 
 f.write('id,label\n')
-for ans, i in zip (ANSES, xrange (len(ANSES))):
+TEST, TEST_hog = load_test(pathes)
+
+ANSES = pred (TEST, TEST_hog, lin, lhog, h5)
+
+for ans, i in zip (ANSES, itertools.count(1)):
     s = tostr(ans.argmax())
-    f.write('%d,%s\n' % (i+1, s))
-    print ('%d,%s\n' % (i+1, s))
+    f.write('%d,%s\n' % (i, s))
+    print ('%d,%s\n' % (i, s))
+
+
+f = open('ans.txt', 'w')
+
+pathes = ["test/%s.png" %  (i) for i in range(150001, 300001)]
+
+f.write('id,label\n')
+TEST, TEST_hog = load_test(pathes)
+
+ANSES = pred (TEST, TEST_hog, lin, lhog, h5)
+
+for ans, i in zip (ANSES, itertools.count(150001)):
+    s = tostr(ans.argmax())
+    f.write('%d,%s\n' % (i, s))
+    print ('%d,%s\n' % (i, s))

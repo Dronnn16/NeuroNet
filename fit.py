@@ -152,9 +152,9 @@ def train(iter_funcs, dataset, ls, batch_size=BATCH_SIZE):
         }
 
 
-def fit(inp1, inp2, output_layer, X1, X_hog, y, eval_size=0.1, num_epochs=100, l_rate_start = 0.1, l_rate_stop = 0.00001):
+def fit(lin, lhog, output_layer, X1, X_hog, y, eval_size=0.1, num_epochs=100, l_rate_start = 0.1, l_rate_stop = 0.00001):
     dataset = load_data(X1 ,X_hog, y, eval_size)
-    iter_funcs = create_iter_functions(inp1, inp2, dataset, output_layer)
+    iter_funcs = create_iter_functions(lin, lhog, dataset, output_layer)
     ls = np.linspace(l_rate_start, l_rate_stop, num_epochs)
 
 
@@ -177,3 +177,13 @@ def fit(inp1, inp2, output_layer, X1, X_hog, y, eval_size=0.1, num_epochs=100, l
         pass
 
     return output_layer
+
+
+
+def pred (TEST, TEST_hog, lin, lhog, output_layer):
+    lin.input_var = TEST
+    lhog.input_var = TEST_hog
+    print ('start')
+    pred = theano.function([], output_layer.get_output(deterministic=True))
+    ANSES = pred()
+
