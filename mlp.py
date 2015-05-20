@@ -143,8 +143,8 @@ for l in _layers:
 '''
 
 
-#fit(lin, lhog, h5, X, X_hog, y, eval_size=0.1, num_epochs=EPOCHS, l_rate_start = 0.1, l_rate_stop = 0.00001)
-#fit(lin, h5, X, X_hog, y, eval_size=0.1, num_epochs=EPOCHS, l_rate_start = 0.1, l_rate_stop = 0.00001)
+fit(lin, lhog, h5, X, X_hog, y, eval_size=0.1, num_epochs=EPOCHS, l_rate_start = 0.1, l_rate_stop = 0.00001)
+
 
 
 
@@ -161,8 +161,8 @@ for i in xrange(len(pathes)):
     TEST.append(float32(image/float32(255)))
     TEST_hog.append(float32(hog))
 
-TEST = np.asarray(X).reshape((-1, 3, 32, 32))
-TEST_hog = np.asarray(X_hog)
+TEST = np.asarray(TEST).reshape((-1, 3, 32, 32))
+TEST_hog = np.asarray(TEST_hog)
 
 lin.input_var = TEST
 lhog.input_var = TEST_hog
