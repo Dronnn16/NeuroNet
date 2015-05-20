@@ -65,7 +65,7 @@ EPOCHS = 10
 
 pathes = ["train/%s.png" %  (i) for i in range(1, NTRAIN+1)]
 
-X, H_hog = load_data(pathes)
+X, X_hog = load_data(pathes)
 
 _y = read_csv('trainLabels.csv', ',').label.apply(tonum).values
 y = np.zeros((len(X), 10))
