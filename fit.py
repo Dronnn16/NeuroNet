@@ -57,16 +57,17 @@ def load_data(X, X_hog, y, eval_size=0.1):
 
 
 def create_iter_functions(inp1, inp2, dataset, output_layer,
-                          batch_size=BATCH_SIZE, learn_only_last_layer = False):
+                          batch_size=BATCH_SIZE):
     """Create functions for training, validation and testing to iterate one
        epoch.
     """
     batch_index = T.iscalar('batch_index')
-    X_batch = T.tensor4('x')
+    batch_slice = slice(batch_index * batch_size,
+                    (batch_index + 1) * batch_size)
+    X_batch = dataset['X_train'][batch_slice]
     X_hog_batch = T.matrix('x1')
     y_batch = T.matrix('y')
-    batch_slice = slice(batch_index * batch_size,
-                        (batch_index + 1) * batch_size)
+
     learning_rate = T.fscalar('rate')
 
     objective = myObjective.Objective(output_layer,
@@ -85,7 +86,7 @@ def create_iter_functions(inp1, inp2, dataset, output_layer,
     acs = T.cast([T.eq(pred[i].argmax(), y_batch[i].argmax()) for i in xrange(batch_size)], 'float32')
     accuracy = T.mean(acs)
 
-    all_params = lasagne.layers.get_all_params(output_layer) if learn_only_last_layer else  output_layer.get_params()
+    all_params = lasagne.layers.get_all_params(output_layer)
     updates = lasagne.updates.adagrad(
         loss_train, all_params, learning_rate)
 
@@ -153,9 +154,9 @@ def train(iter_funcs, dataset, ls, batch_size=BATCH_SIZE):
 
 
 def fit(lin, lhog, output_layer, X1, X_hog, y, eval_size=0.1, num_epochs=100,
-        l_rate_start = 0.1, l_rate_stop = 0.00001, learn_only_last_layer=False):
+        l_rate_start = 0.1, l_rate_stop = 0.00001,):
     dataset = load_data(X1 ,X_hog, y, eval_size)
-    iter_funcs = create_iter_functions(lin, lhog, dataset, output_layer, learn_only_last_layer =learn_only_last_layer)
+    iter_funcs = create_iter_functions(lin, lhog, dataset, output_layer)
     ls = np.linspace(l_rate_start, l_rate_stop, num_epochs)
 
 
@@ -168,7 +169,7 @@ def fit(lin, lhog, output_layer, X1, X_hog, y, eval_size=0.1, num_epochs=100,
             now = time.time()
             print("  training loss:\t\t{:.6f}".format(epoch['train_loss']))
             print("  validation loss:\t\t{:.6f}".format(epoch['valid_loss']))
-            if not learn_only_last_layer :print("  validation accuracy:\t\t{:.5f} %".format(
+            print("  validation accuracy:\t\t{:.5f} %".format(
                 epoch['valid_accuracy'] * 100))
 
             if epoch['number'] >= num_epochs:
