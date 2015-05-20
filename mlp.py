@@ -65,7 +65,7 @@ def tostr(s):
 
 
 NTRAIN = 1000
-NTEST = 50
+NTEST = 300000
 EPOCHS = 2
 
 pathes = ["train/%s.png" %  (i) for i in range(1, NTRAIN+1)]
@@ -78,7 +78,7 @@ for i in xrange(len(pathes)):
     X_hog.append(float32(hog))
 
 
-X = np.asarray(X).reshape((-1, 3, 32, 32))
+X = np.asarray(X)#.reshape((-1, 3, 32, 32))
 X_hog = np.asarray(X_hog)
 
 _y = read_csv('trainLabels.csv', ',').label.apply(tonum).values
@@ -96,11 +96,11 @@ y = float32(y)
 lin = layers.InputLayer((None, 3, 32, 32))
 lhog = layers.InputLayer((None, 324))
 
-h1 = layers.DenseLayer(lin, 50)
-merge = layers.ConcatLayer([h1, lhog])
-h2 = layers.DenseLayer(merge, 40)
-h3 = layers.DenseLayer(h2, 20)
-h4 = layers.DenseLayer(h3, 20)
+h1 = layers.DenseLayer(lin, 1000)
+#merge = layers.ConcatLayer([h1, lhog])
+h2 = layers.DenseLayer(h1, 500)
+h3 = layers.DenseLayer(h2, 200)
+h4 = layers.DenseLayer(h3, 50)
 h5 = layers.DenseLayer(h4, 10, nonlinearity=nonlinearities.softmax)
 
 _layers = [h1, h2, h3, h4, h5]
@@ -156,6 +156,7 @@ TEST = []
 TEST_hog = []
 
 for i in xrange(len(pathes)):
+    print ('loading %s\n' % pathes[i])
     image = skimage.io.imread(pathes[i])
     hog = skimage.feature.hog(skimage.color.rgb2grey(image))
     TEST.append(float32(image/float32(255)))
@@ -163,9 +164,10 @@ for i in xrange(len(pathes)):
 
 TEST = np.asarray(TEST).reshape((-1, 3, 32, 32))
 TEST_hog = np.asarray(TEST_hog)
-
+print ('getting ready')
 lin.input_var = TEST
 lhog.input_var = TEST_hog
+print ('start')
 pred = theano.function([], h5.get_output(deterministic=True))
 ANSES = pred()
 
