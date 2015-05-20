@@ -12,8 +12,6 @@ from lasagne.updates import adagrad
 from nolearn.lasagne import *
 import skimage
 from skimage.viewer import ImageViewer
-import morb
-from morb import rbms, stats, updaters, trainers, monitors, units, parameters
 import  theano
 from theano import *
 import theano.tensor as T
@@ -99,8 +97,8 @@ lin = layers.InputLayer((None, 3, 32, 32))
 lhog = layers.InputLayer((None, 324))
 
 h1 = layers.DenseLayer(lin, 50)
-merge = layers.ConcatLayer([h1, lhog])
-h2 = layers.DenseLayer(merge, 40)
+#merge = layers.ConcatLayer([h1, lhog])
+h2 = layers.DenseLayer(h1, 40)
 h3 = layers.DenseLayer(h2, 20)
 h4 = layers.DenseLayer(h3, 20)
 h5 = layers.DenseLayer(h4, 10, nonlinearity=nonlinearities.softmax)
@@ -145,8 +143,8 @@ for l in _layers:
 '''
 
 
-fit(lin, lhog, h5, X, X_hog, y, eval_size=0.1, num_epochs=EPOCHS, l_rate_start = 0.1, l_rate_stop = 0.00001)
-
+#fit(lin, lhog, h5, X, X_hog, y, eval_size=0.1, num_epochs=EPOCHS, l_rate_start = 0.1, l_rate_stop = 0.00001)
+#fit(lin, h5, X, X_hog, y, eval_size=0.1, num_epochs=EPOCHS, l_rate_start = 0.1, l_rate_stop = 0.00001)
 
 
 

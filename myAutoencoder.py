@@ -12,8 +12,6 @@ from lasagne.updates import adagrad
 from nolearn.lasagne import *
 import skimage
 from skimage.viewer import ImageViewer
-import morb
-from morb import rbms, stats, updaters, trainers, monitors, units, parameters
 import  theano
 from theano import *
 import theano.tensor as T
