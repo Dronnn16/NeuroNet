@@ -74,7 +74,7 @@ def create_iter_functions(inp1, inp2, dataset, output_layer,
 
 
     inp1.input_var = X_batch
-    #inp2.input_var = X_hog_batch
+    inp2.input_var = X_hog_batch
 
     loss_train = objective.get_loss(target=y_batch)
     loss_eval = objective.get_loss(target=y_batch,
