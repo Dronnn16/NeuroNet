@@ -99,7 +99,7 @@ def create_iter_functions(inp1, inp2, dataset, output_layer,
             y_batch: dataset['y_train'][batch_slice],
         },
         allow_input_downcast=True,
-        on_unused_input='warn'
+        on_unused_input='ignore'
     )
 
     iter_valid = theano.function(
@@ -109,7 +109,7 @@ def create_iter_functions(inp1, inp2, dataset, output_layer,
             X_hog_batch: dataset['X_hog_valid'][batch_slice],
             y_batch: dataset['y_valid'][batch_slice],
         },
-        on_unused_input='warn'
+        on_unused_input='ignore'
     )
 
 
@@ -177,7 +177,7 @@ def fit(lin, lhog, output_layer, X1, X_hog, y, eval_size=0.1, num_epochs=100,
 
     except KeyboardInterrupt:
         pass
-
+    print('\n')
     return output_layer
 
 

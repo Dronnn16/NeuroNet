@@ -8,26 +8,24 @@ from numpy import *
 from pandas.io.parsers import read_csv
 from sklearn.utils import shuffle
 from lasagne import *
-from lasagne.updates import nesterov_momentum
+from lasagne.updates import adagrad
 from nolearn.lasagne import *
 import skimage
 from skimage.viewer import ImageViewer
-import morb
-from morb import rbms, stats, updaters, trainers, monitors, units, parameters
-import theano
+import  theano
 from theano import *
 import theano.tensor as T
 import time
 import matplotlib.pyplot as plt
 plt.ion()
-#from utils import generate_data, get_context
-from AV import AdjustVariable
-from theano import config
-from Flip import FlipBatchIterator
-from lasagne.updates import adagrad
-import myObjective
-theano.config.exception_verbosity='high'
+from fit import fit, pred
+import itertools
+from load_data import load_data
+import sys
+sys.stdout = open('log.txt', 'w')
 
+def float32(x):
+    return np.cast['float32'](x)
 
 def tonum(s):
     t = {
@@ -60,27 +58,14 @@ def tostr(s):
     return t[s+1]
 
 
-def float32(x):
-    return np.cast['float32'](x)
 
-
-
-#data = generate_data(200)
-
-NTRAIN = 50000
+NTRAIN = 10
 NTEST = 300000
-EPOCHS = 100
+EPOCHS = 10
 
 pathes = ["train/%s.png" %  (i) for i in range(1, NTRAIN+1)]
-X = []
-for i in xrange(len(pathes)):
-    image = skimage.io.imread(pathes[i])
-   # hog = np.squeeze(np.asarray(skimage.feature.hog(skimage.color.rgb2grey(image)).ravel())).reshape(-1)
-    X.append(image)
- #   X.append(image.ravel())
-X = np.asarray(X)
-X = float32(X)/float32(255)
-X = X.reshape(-1, 3, 32, 32)
+
+X, H_hog = load_data(pathes)
 
 _y = read_csv('trainLabels.csv', ',').label.apply(tonum).values
 y = np.zeros((len(X), 10))
@@ -94,61 +79,72 @@ y = float32(y)
 
 
 
+lin = layers.InputLayer((None, 3, 32, 32))
+lhog = layers.InputLayer((None, 324))
+
+h1 = layers.DenseLayer(lin, 50, name = 'afterinput')
+#merge = layers.ConcatLayer([h1, lhog])
+h2 = layers.DenseLayer(h1, 40)
+h3 = layers.DenseLayer(h2, 20)
+h4 = layers.DenseLayer(h3, 20)
+h5 = layers.DenseLayer(h4, 10, nonlinearity=nonlinearities.softmax)
+
+_layers = [h1, h2, h3, h4]
+
+
+shape = lin.get_output_shape()
+Xi =  np.asarray([(t.ravel()) for t in X])
+for l in _layers:
+    if (l.name != 'merge'):
+        inp = layers.InputLayer(shape)
+        tlayer = layers.DenseLayer(incoming=inp, num_units=l.num_units, W=l.W, b=l.b)
+        out = layers.DenseLayer(incoming=tlayer, num_units=Xi.shape[1])
+        if (l.name == 'afterinput'):
+            fit(lin=inp, lhog = lhog, output_layer=out, X1=X, X_hog=X_hog, y=Xi, eval_size=0.1, num_epochs=100,
+            l_rate_start = 0.01, l_rate_stop = 0.00001)
+        else:
+            fit(lin=inp, lhog = lhog, output_layer = out, X1=Xi, X_hog=X_hog, y=Xi, eval_size=0.1, num_epochs=100,
+            l_rate_start = 0.01, l_rate_stop = 0.00001)
+
+    lin.input_var = X
+    lhog.input_var = X_hog
+    out = theano.function([], l.get_output())
+    Xi = out()
+    shape = l.get_output_shape()
 
 
 
-net1 = NeuralNet(
-    layers=[
-        ('input', layers.InputLayer),
-        ('conv1', layers.Conv2DLayer),
-        ('pool1', layers.MaxPool2DLayer),
-        ('conv2', layers.Conv2DLayer),
-        ('pool2', layers.MaxPool2DLayer),
-        ('conv3', layers.Conv2DLayer),
-        ('pool3', layers.MaxPool2DLayer),
-        ('hidden4', layers.DenseLayer),
-        ('hidden5', layers.DenseLayer),
-        ('output', layers.DenseLayer),
-        ],
-    input_shape=(None, 3, 32, 32),
-    conv1_num_filters=32, conv1_filter_size=(3, 3), pool1_pool_size=(2, 2),
-    conv2_num_filters=64, conv2_filter_size=(2, 2), pool2_pool_size=(2, 2),
-    conv3_num_filters=128, conv3_filter_size=(2, 2), pool3_pool_size=(2, 2),
-    hidden4_num_units=500, hidden5_num_units=500,
-    output_num_units=10, output_nonlinearity=nonlinearities.softmax,
 
-    # optimization method:
-    update=adagrad,
-    update_learning_rate=theano.shared(float32(0.03)),
-  #  update_momentum=theano.shared(float32(0.9)),
-    batch_iterator_train=FlipBatchIterator(batch_size=128),
-    on_epoch_finished=[
-        AdjustVariable('update_learning_rate', start=0.01, stop=0.00001),
-      #  AdjustVariable('update_momentum', start=0.9, stop=0.999),
-        ],
-    objective=myObjective.Objective,
-    eval_size=float32(0.1),
-    regression=True,  # flag to indicate we're dealing with regression problem
-    max_epochs=EPOCHS,  # we want to train this many epochs
-    verbose=1,
-    )
+fit(lin, lhog, h5, X, X_hog, y, eval_size=0.1, num_epochs=EPOCHS, l_rate_start = 0.01, l_rate_stop = 0.00001)
 
 
-net1.fit(X, y)
+
 
 
 f = open('ans.txt', 'w')
-
-pathes = ["test/%s.png" %  (i) for i in range(1, NTEST+1)]
-TEST = []
-#X_hog = []
 f.write('id,label\n')
-for i in xrange(len(pathes)):
-    image = float32(skimage.io.imread(pathes[i])/float32(255))
-    #hog = np.squeeze(np.asarray(skimage.feature.hog(skimage.color.rgb2grey(image)).ravel())).reshape(-1)
-    #TEST.append(float32(image.ravel())/float32(255))
-  #  X_hog.append(float32(hog))
-    image = np.asarray(image.reshape(3, 32, 32))
-    s = tostr(net1.predict(np.asarray([image])).argmax())
-    f.write('%d,%s\n' % (i+1, s))
-    print ('%d,%s\n' % (i+1, s))
+
+pathes = ["test/%s.png" %  (i) for i in range(1, 100001)]
+TEST, TEST_hog = load_test(pathes)
+ANSES = pred (TEST, TEST_hog, lin, lhog, h5)
+for ans, i in zip (ANSES, itertools.count(1)):
+    s = tostr(ans.argmax())
+    f.write('%d,%s\n' % (i, s))
+   # print ('%d,%s\n' % (i, s))
+
+
+pathes = ["test/%s.png" %  (i) for i in range(100001, 200001)]
+TEST, TEST_hog = load_test(pathes)
+ANSES = pred (TEST, TEST_hog, lin, lhog, h5)
+for ans, i in zip (ANSES, itertools.count(100001)):
+    s = tostr(ans.argmax())
+    f.write('%d,%s\n' % (i, s))
+   # print ('%d,%s\n' % (i, s))
+
+pathes = ["test/%s.png" %  (i) for i in range(200001, 300001)]
+TEST, TEST_hog = load_test(pathes)
+ANSES = pred (TEST, TEST_hog, lin, lhog, h5)
+for ans, i in zip (ANSES, itertools.count(200001)):
+    s = tostr(ans.argmax())
+    f.write('%d,%s\n' % (i, s))
+   # print ('%d,%s\n' % (i, s))
