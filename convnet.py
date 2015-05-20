@@ -59,7 +59,7 @@ def tostr(s):
 
 
 
-NTRAIN = 10
+NTRAIN = 1000
 NTEST = 300000
 EPOCHS = 10
 

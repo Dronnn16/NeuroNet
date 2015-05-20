@@ -11,10 +11,10 @@ def load_data (pathes):
         #print ('loading %s\n' % pathes[i])
         image = skimage.io.imread(pathes[i])
         hog = skimage.feature.hog(skimage.color.rgb2grey(image))
-        normimge = float32(image/float32(255))
-        R =  np.asarray([[pixel[0] for pixel in string] for string in normimge])
-        G =  np.asarray([[pixel[1] for pixel in string] for string in normimge])
-        B =  np.asarray([[pixel[2] for pixel in string] for string in normimge])
+        normimage = float32(image/float32(255))
+        R =  normimage[:, :, 0]
+        G =  normimage[:, :, 1]
+        B =  normimage[:, :, 2]
         TEST.append(np.asarray([R, G, B]))
         TEST_hog.append(float32(hog))
 

@@ -82,13 +82,13 @@ lin = layers.InputLayer((None, 3, 32, 32))
 lhog = layers.InputLayer((None, 324))
 
 h1 = layers.DenseLayer(lin, 50, name = 'afterinput')
-#merge = layers.ConcatLayer([h1, lhog])
-h2 = layers.DenseLayer(h1, 40)
+merge = layers.ConcatLayer([h1, lhog], name = 'merge')
+h2 = layers.DenseLayer(merge, 40)
 h3 = layers.DenseLayer(h2, 20)
 h4 = layers.DenseLayer(h3, 20)
 h5 = layers.DenseLayer(h4, 10, nonlinearity=nonlinearities.softmax)
 
-_layers = [h1, h2, h3, h4]
+_layers = [h1, merge, h2, h3, h4]
 
 
 shape = lin.get_output_shape()
