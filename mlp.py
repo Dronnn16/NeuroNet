@@ -146,7 +146,7 @@ for l in _layers:
 '''
 
 
-fit(lin, lhog, h5, X, X_hog, y, eval_size=0.1, num_epochs=EPOCHS, l_rate_start = 0.1, l_rate_stop = 0.00001)
+fit(lin, lhog, h5, X, X_hog, y, eval_size=0.1, num_epochs=EPOCHS, l_rate_start = 0.01, l_rate_stop = 0.00001)
 
 
 
@@ -156,15 +156,24 @@ f = open('ans.txt', 'w')
 
 pathes = ["test/%s.png" %  (i) for i in range(1, NTEST+1)]
 TEST = []
-#X_hog = []
-f.write('id,label\n')
+TEST_hog = []
+
 for i in xrange(len(pathes)):
-    image = float32(skimage.io.imread(pathes[i])/float32(255))
-    hog = float32(skimage.feature.hog(skimage.color.rgb2grey(image)))
-    image = np.asarray(image.reshape(3, 32, 32))
-    lin.input_var = np.asarray([image])
-    lhog.input_var = np.asarray([hog])
-    ans = theano.function([], h5.get_output(deterministic=True))
-    s = tostr(ans().argmax())
+    image = skimage.io.imread(pathes[i])
+    hog = skimage.feature.hog(skimage.color.rgb2grey(image))
+    TEST.append(float32(image/float32(255)))
+    TEST_hog.append(float32(hog))
+
+TEST = np.asarray(X).reshape((-1, 3, 32, 32))
+TEST_hog = np.asarray(X_hog)
+
+lin.input_var = TEST
+lhog.input_var = TEST_hog
+pred = theano.function([], h5.get_output(deterministic=True))
+ANSES = pred()
+
+f.write('id,label\n')
+for ans in ANSES:
+    s = tostr(ans.argmax())
     f.write('%d,%s\n' % (i+1, s))
     print ('%d,%s\n' % (i+1, s))
