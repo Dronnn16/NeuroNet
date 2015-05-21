@@ -59,7 +59,7 @@ def tostr(s):
 
 
 
-NTRAIN = 1000
+NTRAIN = 100
 NTEST = 300000
 EPOCHS = 10
 
@@ -81,14 +81,14 @@ y = float32(y)
 lin = layers.InputLayer((None, 3, 32, 32))
 lhog = layers.InputLayer((None, 324))
 
-h1 = layers.DenseLayer(lin, 50, name = 'afterinput')
-merge = layers.ConcatLayer([h1, lhog], name = 'merge')
-h2 = layers.DenseLayer(merge, 40)
-h3 = layers.DenseLayer(h2, 20)
-h4 = layers.DenseLayer(h3, 20)
+h1 = layers.DenseLayer(lin, 20, name = 'afterinput', nonlinearity=nonlinearities.sigmoid)
+#merge = layers.ConcatLayer([h1, lhog], name = 'merge')
+h2 = layers.DenseLayer(h1, 40, nonlinearity=nonlinearities.sigmoid)
+h3 = layers.DenseLayer(h2, 20, nonlinearity=nonlinearities.sigmoid)
+h4 = layers.DenseLayer(h3, 20, nonlinearity=nonlinearities.sigmoid)
 h5 = layers.DenseLayer(h4, 10, nonlinearity=nonlinearities.softmax)
 
-_layers = [h1, merge, h2, h3, h4]
+_layers = [h1, h2, h3, h4]
 
 
 shape = lin.get_output_shape()
@@ -96,14 +96,15 @@ Xi =  np.asarray([(t.ravel()) for t in X])
 for l in _layers:
     if (l.name != 'merge'):
         inp = layers.InputLayer(shape)
-        tlayer = layers.DenseLayer(incoming=inp, num_units=l.num_units, W=l.W, b=l.b)
-        out = layers.DenseLayer(incoming=tlayer, num_units=Xi.shape[1])
+        tlayer = layers.DenseLayer(incoming=inp, num_units=l.num_units, W=l.W, b=l.b, nonlinearity=l.nonlinearity)
+        out = layers.DenseLayer(incoming=tlayer, num_units=Xi.shape[1], nonlinearity=nonlinearities.sigmoid)
         if (l.name == 'afterinput'):
             fit(lin=inp, lhog = lhog, output_layer=out, X1=X, X_hog=X_hog, y=Xi, eval_size=0.1, num_epochs=100,
-            l_rate_start = 0.01, l_rate_stop = 0.00001)
+            l_rate_start = 0.01, l_rate_stop = 0.00001, batch_size = 10, l2_strength = 0)
         else:
             fit(lin=inp, lhog = lhog, output_layer = out, X1=Xi, X_hog=X_hog, y=Xi, eval_size=0.1, num_epochs=100,
             l_rate_start = 0.01, l_rate_stop = 0.00001)
+      #  l.W.set_value(tlayer.W.get_value())
 
     lin.input_var = X
     lhog.input_var = X_hog

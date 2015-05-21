@@ -25,7 +25,7 @@ class Objective(object):
     The  `get_loss` method returns cost expression useful for training or
     evaluating a network.
     """
-    def __init__(self, input_layer, loss_function=mse, aggregation='mean'):
+    def __init__(self, input_layer, loss_function=mse, l2_strength = 0, aggregation='mean'):
         """
         Constructor
 
@@ -44,6 +44,7 @@ class Objective(object):
         self.input_layer = input_layer
         self.loss_function = loss_function
         self.target_var = T.matrix("target")
+        self.l2_strength = l2_strength
         if aggregation not in self._valid_aggregation:
             raise ValueError('aggregation must be \'mean\', \'sum\', '
                              'or None, not {0}'.format(aggregation))
@@ -76,7 +77,7 @@ class Objective(object):
         if aggregation is None:
             aggregation = self.aggregation
 
-        losses = self.loss_function(network_output, target) + 0.0001*l2(self.input_layer)
+        losses = self.loss_function(network_output, target) + self.l2_strength*l2(self.input_layer)
 
         if aggregation is None or aggregation == 'mean':
             return losses.mean()

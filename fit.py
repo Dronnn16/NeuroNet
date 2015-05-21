@@ -16,7 +16,7 @@ from numpy import *
 import myObjective
 
 
-BATCH_SIZE = 100
+BATCH_SIZE = 5
 LEARNING_RATE = 0.001
 MOMENTUM = 0.9
 
@@ -57,7 +57,7 @@ def load_data(X, X_hog, y, eval_size=0.1):
 
 
 def create_iter_functions(inp1, inp2, dataset, output_layer,
-                          batch_size=BATCH_SIZE):
+                          batch_size, l2_strength):
     """Create functions for training, validation and testing to iterate one
        epoch.
     """
@@ -70,8 +70,8 @@ def create_iter_functions(inp1, inp2, dataset, output_layer,
 
     learning_rate = T.fscalar('rate')
 
-    objective = myObjective.Objective(output_layer,
-        loss_function=lasagne.objectives.mse)
+    objective = myObjective.Objective(input_layer=output_layer,
+        loss_function=lasagne.objectives.mse, l2_strength = l2_strength)
 
 
     inp1.input_var = X_batch
@@ -119,7 +119,7 @@ def create_iter_functions(inp1, inp2, dataset, output_layer,
     )
 
 
-def train(iter_funcs, dataset, ls, batch_size=BATCH_SIZE):
+def train(iter_funcs, dataset, ls, batch_size):
     """Train the model with `dataset` with mini-batch training. Each
        mini-batch has `batch_size` recordings.
     """
@@ -154,16 +154,16 @@ def train(iter_funcs, dataset, ls, batch_size=BATCH_SIZE):
 
 
 def fit(lin, lhog, output_layer, X1, X_hog, y, eval_size=0.1, num_epochs=100,
-        l_rate_start = 0.1, l_rate_stop = 0.00001,):
+        l_rate_start = 0.1, l_rate_stop = 0.00001, batch_size=100, l2_strength=0):
     dataset = load_data(X1 ,X_hog, y, eval_size)
-    iter_funcs = create_iter_functions(lin, lhog, dataset, output_layer)
+    iter_funcs = create_iter_functions(lin, lhog, dataset, output_layer, batch_size, l2_strength)
     ls = np.linspace(l_rate_start, l_rate_stop, num_epochs)
 
 
     print("Starting training...")
     now = time.time()
     try:
-        for epoch in train(iter_funcs, dataset, ls):
+        for epoch in train(iter_funcs, dataset, ls, batch_size):
             print("Epoch {} of {} took {:.3f}s".format(
                 epoch['number'], num_epochs, time.time() - now))
             now = time.time()
@@ -185,7 +185,7 @@ def fit(lin, lhog, output_layer, X1, X_hog, y, eval_size=0.1, num_epochs=100,
 def pred (TEST, TEST_hog, lin, lhog, output_layer):
     lin.input_var = TEST
     lhog.input_var = TEST_hog
-    print ('start')
+  ##  print ('start')
     pred = theano.function([], output_layer.get_output(deterministic=True))
     return  pred()
 

@@ -59,7 +59,7 @@ def tostr(s):
 
 
 
-NTRAIN = 1000
+NTRAIN = 20
 NTEST = 300000
 EPOCHS = 10
 
@@ -82,7 +82,7 @@ y = float32(y)
 lin = layers.InputLayer((None, 3, 32, 32))
 lhog = layers.InputLayer((None, 324))
 
-h1 = layers.DenseLayer(lin, 50, name = 'afterinput')
+h1 = layers.DenseLayer(lin, 61500, name = 'afterinput')
 #merge = layers.ConcatLayer([h1, lhog])
 h2 = layers.DenseLayer(h1, 40)
 h3 = layers.DenseLayer(h2, 20)
