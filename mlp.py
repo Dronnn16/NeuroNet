@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 plt.ion()
 from fit import fit, pred
 import itertools
-from load_data import load_data
+from load_data import load_data, print_prediction
 import sys
 sys.stdout = open('log.txt', 'w')
 
@@ -60,7 +60,7 @@ def tostr(s):
 
 
 NTRAIN = 100
-NTEST = 300000
+NTEST = 200
 EPOCHS = 10
 
 pathes = ["train/%s.png" %  (i) for i in range(1, NTRAIN+1)]
@@ -118,33 +118,6 @@ for l in _layers:
 fit(lin, lhog, h5, X, X_hog, y, eval_size=0.1, num_epochs=EPOCHS, l_rate_start = 0.01, l_rate_stop = 0.00001)
 
 
+print_prediction (count=NTEST, numiters=10, pred=pred, lin=lin, lhog=lhog, h5=h5)
 
 
-
-f = open('ans.txt', 'w')
-f.write('id,label\n')
-
-pathes = ["test/%s.png" %  (i) for i in range(1, 100001)]
-TEST, TEST_hog = load_data(pathes)
-ANSES = pred (TEST, TEST_hog, lin, lhog, h5)
-for ans, i in zip (ANSES, itertools.count(1)):
-    s = tostr(ans.argmax())
-    f.write('%d,%s\n' % (i, s))
-   # print ('%d,%s\n' % (i, s))
-
-
-pathes = ["test/%s.png" %  (i) for i in range(100001, 200001)]
-TEST, TEST_hog = load_data(pathes)
-ANSES = pred (TEST, TEST_hog, lin, lhog, h5)
-for ans, i in zip (ANSES, itertools.count(100001)):
-    s = tostr(ans.argmax())
-    f.write('%d,%s\n' % (i, s))
-   # print ('%d,%s\n' % (i, s))
-
-pathes = ["test/%s.png" %  (i) for i in range(200001, 300001)]
-TEST, TEST_hog = load_data(pathes)
-ANSES = pred (TEST, TEST_hog, lin, lhog, h5)
-for ans, i in zip (ANSES, itertools.count(200001)):
-    s = tostr(ans.argmax())
-    f.write('%d,%s\n' % (i, s))
-  #  print ('%d,%s\n' % (i, s))
