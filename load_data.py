@@ -45,7 +45,6 @@ def tostr(s):
 
 def take_image(path):
     image = skimage.io.imread(path)
-    hog = skimage.feature.hog(skimage.color.rgb2grey(image))
     normimage = float32(image/float32(255))
     R =  normimage[:, :, 0]
     G =  normimage[:, :, 1]
@@ -53,28 +52,16 @@ def take_image(path):
     return np.asarray([R, G, B])
 
 
-
+def hog_filter(path):
+    image = skimage.io.imread(path)
+    hog = skimage.feature.hog(skimage.color.rgb2grey(image))
+    return hog
 
 
 def load_data (pathes, ontest=False):
-    X = []
-    X_hog = []
-    p = cpu_count()
-    p = Pool(4)
-    X = p.map(take_image, pathes)
-    for i in xrange(len(pathes)):
-        #print ('loading %s\n' % pathes[i])
-        image = skimage.io.imread(pathes[i])
-        hog = skimage.feature.hog(skimage.color.rgb2grey(image), orientations=9, pixels_per_cell=(32, 32), cells_per_block=(1, 1), normalise=True)
-        normimage = float32(image/float32(255))
-        R =  normimage[:, :, 0]
-        G =  normimage[:, :, 1]
-        B =  normimage[:, :, 2]
-        X.append(np.asarray([R, G, B]))
-        X_hog.append(float32(hog))
-
-    X = np.asarray(X)
-    X_hog = np.asarray(X_hog)
+    p = Pool(32)
+    X = np.asarray(p.map(take_image, pathes))
+    X_hog = np.asarray(map(p.hog_filter, pathes))
 
     y = np.zeros((len(X), 10))
     if not ontest:

@@ -20,9 +20,10 @@ import matplotlib.pyplot as plt
 plt.ion()
 from fit import fit, pred
 import itertools
-from load_data import load_data
+from load_data import load_data, print_prediction
 import sys
 sys.stdout = open('log.txt', 'w')
+from sklearn.cross_validation import KFold
 
 def float32(x):
     return np.cast['float32'](x)
@@ -59,7 +60,7 @@ def tostr(s):
 
 
 
-NTRAIN = 20
+NTRAIN = 200
 NTEST = 300000
 EPOCHS = 10
 
@@ -82,12 +83,15 @@ y = float32(y)
 lin = layers.InputLayer((None, 3, 32, 32))
 lhog = layers.InputLayer((None, 324))
 
-h1 = layers.DenseLayer(lin, 61500, name = 'afterinput')
+h1 = layers.Conv2DLayer(incoming=lin, num_filters=50, filter_size=(3,3), name = 'afterinput')
 #merge = layers.ConcatLayer([h1, lhog])
-h2 = layers.DenseLayer(h1, 40)
-h3 = layers.DenseLayer(h2, 20)
-h4 = layers.DenseLayer(h3, 20)
-h5 = layers.DenseLayer(h4, 10, nonlinearity=nonlinearities.softmax)
+h2 = layers.MaxPool2DLayer(incoming=h1, pool_size=(2,2))
+h3 = layers.Conv2DLayer(incoming=h2, num_filters=100, filter_size=(3,3))
+h4 = layers.MaxPool2DLayer(incoming=h3, pool_size=(2,2))
+h5 = layers.Conv2DLayer(incoming=h4, num_filters=200, filter_size=(2,2))
+h6 = layers.MaxPool2DLayer(incoming=h5, pool_size=(2,2))
+h7 = layers.DenseLayer(h6, 100)
+out = layers.DenseLayer(h7, 10, nonlinearity=nonlinearities.softmax)
 
 _layers = [h1, h2, h3, h4]
 
@@ -97,7 +101,12 @@ Xi =  np.asarray([(t.ravel()) for t in X])
 for l in _layers:
     if (l.name != 'merge'):
         inp = layers.InputLayer(shape)
-        tlayer = layers.DenseLayer(incoming=inp, num_units=l.num_units, W=l.W, b=l.b)
+
+        if (l.name == 'conv'):
+            tlayer = layers.DenseLayer(incoming=inp, num_filters=l.num_filters, filter_size=l.filter_size, W=l.W, b=l.b)
+        else:
+            tlayer = layers.DenseLayer(incoming=inp, num_units=l.num_units, W=l.W, b=l.b)
+
         out = layers.DenseLayer(incoming=tlayer, num_units=Xi.shape[1])
         if (l.name == 'afterinput'):
             fit(lin=inp, lhog = lhog, output_layer=out, X1=X, X_hog=X_hog, y=Xi, eval_size=0.1, num_epochs=100,
@@ -106,45 +115,23 @@ for l in _layers:
             fit(lin=inp, lhog = lhog, output_layer = out, X1=Xi, X_hog=X_hog, y=Xi, eval_size=0.1, num_epochs=100,
             l_rate_start = 0.01, l_rate_stop = 0.00001)
 
-    lin.input_var = X
-    lhog.input_var = X_hog
-    out = theano.function([], l.get_output())
-    Xi = out()
-    shape = l.get_output_shape()
+    shape = l.output_shape
+    kf = KFold(NTRAIN, 100)
+    Xi = np.empty(tuple(np.append([1], shape[1:])), 'float32')
+    for indices in iter(kf):
+        lin.input_var = theano.shared(X[indices[1]])
+        lhog.input_var = theano.shared(X_hog[indices[1]])
+        out = theano.function([], layers.get_output(l, deterministic=True), on_unused_input='ignore')
+        t=out()
+        Xi = np.concatenate((Xi, out()))
+
+    Xi = Xi[1:]
 
 
 
 
-fit(lin, lhog, h5, X, X_hog, y, eval_size=0.1, num_epochs=EPOCHS, l_rate_start = 0.01, l_rate_stop = 0.00001)
+fit(lin=lin, lhog=lhog, output_layer=out, X=X, X_hog=X_hog, y=y, eval_size=0.1, num_epochs=EPOCHS,
+    l_rate_start = 0.01, l_rate_stop = 0.00001, batch_size = 100, l2_strength = 0.0001, Flip=True)
 
 
-
-
-
-f = open('ans.txt', 'w')
-f.write('id,label\n')
-
-pathes = ["test/%s.png" %  (i) for i in range(1, 100001)]
-TEST, TEST_hog = load_test(pathes)
-ANSES = pred (TEST, TEST_hog, lin, lhog, h5)
-for ans, i in zip (ANSES, itertools.count(1)):
-    s = tostr(ans.argmax())
-    f.write('%d,%s\n' % (i, s))
-   # print ('%d,%s\n' % (i, s))
-
-
-pathes = ["test/%s.png" %  (i) for i in range(100001, 200001)]
-TEST, TEST_hog = load_test(pathes)
-ANSES = pred (TEST, TEST_hog, lin, lhog, h5)
-for ans, i in zip (ANSES, itertools.count(100001)):
-    s = tostr(ans.argmax())
-    f.write('%d,%s\n' % (i, s))
-   # print ('%d,%s\n' % (i, s))
-
-pathes = ["test/%s.png" %  (i) for i in range(200001, 300001)]
-TEST, TEST_hog = load_test(pathes)
-ANSES = pred (TEST, TEST_hog, lin, lhog, h5)
-for ans, i in zip (ANSES, itertools.count(200001)):
-    s = tostr(ans.argmax())
-    f.write('%d,%s\n' % (i, s))
-   # print ('%d,%s\n' % (i, s))
+print_prediction(count=NTEST, numiters=100, pred=pred, lin=lin, lhog=lhog, output_layer=out)

@@ -31,9 +31,9 @@ def float32(x):
 
 
 
-NTRAIN = 350
+NTRAIN = 50000
 NTEST = 200
-EPOCHS = 10
+EPOCHS = 100
 
 pathes = ["train/%s.png" %  (i) for i in range(1, NTRAIN+1)]
 X, X_hog, y = load_data(pathes)
@@ -48,11 +48,11 @@ X, X_hog, y = load_data(pathes)
 lin = layers.InputLayer((None, 3, 32, 32))
 lhog = layers.InputLayer((None, 324))
 
-h1 = layers.DenseLayer(lin, 20, name = 'afterinput', nonlinearity=nonlinearities.sigmoid)
+h1 = layers.DenseLayer(lin, 50, name = 'afterinput', nonlinearity=nonlinearities.sigmoid)
 #merge = layers.ConcatLayer([h1, lhog], name = 'merge')
-h2 = layers.DenseLayer(h1, 40, nonlinearity=nonlinearities.sigmoid)
-h3 = layers.DenseLayer(h2, 20, nonlinearity=nonlinearities.sigmoid)
-h4 = layers.DenseLayer(h3, 20, nonlinearity=nonlinearities.sigmoid)
+h2 = layers.DenseLayer(h1, 40)#, nonlinearity=nonlinearities.sigmoid)
+h3 = layers.DenseLayer(h2, 20)#, nonlinearity=nonlinearities.sigmoid)
+h4 = layers.DenseLayer(h3, 20)#, nonlinearity=nonlinearities.sigmoid)
 h5 = layers.DenseLayer(h4, 10, nonlinearity=nonlinearities.softmax)
 
 _layers = [h1, h2, h3, h4]
@@ -64,13 +64,13 @@ for l in _layers:
     if (l.name != 'merge'):
         inp = layers.InputLayer(shape)
         tlayer = layers.DenseLayer(incoming=inp, num_units=l.num_units, W=l.W, b=l.b, nonlinearity=l.nonlinearity)
-        out = layers.DenseLayer(incoming=tlayer, num_units=Xi.shape[1], nonlinearity=nonlinearities.sigmoid)
+        out = layers.DenseLayer(incoming=tlayer, num_units=Xi.shape[1])#, nonlinearity=nonlinearities.sigmoid)
         if (l.name == 'afterinput'):
-            fit(lin=inp, lhog = lhog, output_layer=out, X=X, X_hog=X_hog, y=Xi, eval_size=0.1, num_epochs=10,
-            l_rate_start = 0.01, l_rate_stop = 0.00001, batch_size = 10, l2_strength = 0, Flip=False)
+            fit(lin=inp, lhog = lhog, output_layer=out, X=X, X_hog=X_hog, y=Xi, eval_size=0.1, num_epochs=100,
+            l_rate_start = 0.01, l_rate_stop = 0.00001, batch_size = 100, l2_strength = 0, Flip=False)
         else:
             fit(lin=inp, lhog = lhog, output_layer = out, X=Xi, X_hog=X_hog, y=Xi, eval_size=0.1, num_epochs=50,
-            l_rate_start = 0.001, l_rate_stop = 0.0001, batch_size = 50, l2_strength = 0, Flip=False)
+            l_rate_start = 0.001, l_rate_stop = 0.0001, batch_size = 100, l2_strength = 0, Flip=False)
 
 
 
@@ -91,9 +91,9 @@ for l in _layers:
 
 
 fit(lin=lin, lhog=lhog, output_layer=h5, X=X, X_hog=X_hog, y=y, eval_size=0.1, num_epochs=EPOCHS,
-    l_rate_start = 0.01, l_rate_stop = 0.00001, batch_size = 100, l2_strength = 0, Flip=True)
+    l_rate_start = 0.000001, l_rate_stop = 0.0000001, batch_size = 100, l2_strength = 0, Flip=False)
 
 
-print_prediction (count=NTEST, numiters=100, pred=pred, lin=lin, lhog=lhog, output_layer=h5)
+print_prediction (count=NTEST, numiters=1000, pred=pred, lin=lin, lhog=lhog, output_layer=h5)
 
 
