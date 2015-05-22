@@ -14,7 +14,8 @@ from sklearn.cross_validation import KFold
 import numpy as np
 from numpy import *
 import myObjective
-
+import skimage
+from multiprocessing import Pool
 
 BATCH_SIZE = 5
 LEARNING_RATE = 0.001
@@ -57,7 +58,7 @@ def load_data(X, X_hog, y, eval_size=0.1):
 
 
 def create_iter_functions(inp1, inp2, dataset, output_layer,
-                          batch_size, l2_strength):
+                          batch_size, l2_strength, Flip):
     """Create functions for training, validation and testing to iterate one
        epoch.
     """
@@ -72,6 +73,14 @@ def create_iter_functions(inp1, inp2, dataset, output_layer,
 
     objective = myObjective.Objective(input_layer=output_layer,
         loss_function=lasagne.objectives.mse, l2_strength = l2_strength)
+
+
+    if Flip:
+        p=Pool(4)
+        bs = X_batch.shape[0]
+        indices = np.random.choice(bs, bs / 2, replace=False)
+        X_batch[indices] = X_batch[indices, :, :, ::-1]
+        X_hog_batch[indices] = p.map(skimage.feature.hog, X_hog_batch[indices])
 
 
     inp1.input_var = X_batch
@@ -153,10 +162,10 @@ def train(iter_funcs, dataset, ls, batch_size):
         }
 
 
-def fit(lin, lhog, output_layer, X1, X_hog, y, eval_size=0.1, num_epochs=100,
-        l_rate_start = 0.1, l_rate_stop = 0.00001, batch_size=100, l2_strength=0):
-    dataset = load_data(X1 ,X_hog, y, eval_size)
-    iter_funcs = create_iter_functions(lin, lhog, dataset, output_layer, batch_size, l2_strength)
+def fit(lin, lhog, output_layer, X, X_hog, y, eval_size=0.1, num_epochs=100,
+        l_rate_start = 0.1, l_rate_stop = 0.00001, batch_size=100, l2_strength=0, Flip=True):
+    dataset = load_data(X, X_hog, y, eval_size)
+    iter_funcs = create_iter_functions(lin, lhog, dataset, output_layer, batch_size, l2_strength, Flip)
     ls = np.linspace(l_rate_start, l_rate_stop, num_epochs)
 
 
@@ -183,8 +192,8 @@ def fit(lin, lhog, output_layer, X1, X_hog, y, eval_size=0.1, num_epochs=100,
 
 
 def pred (TEST, TEST_hog, lin, lhog, output_layer):
-    lin.input_var = TEST
-    lhog.input_var = TEST_hog
+    lin.input_var = theano.shared(TEST)
+    lhog.input_var = theano.shared(TEST_hog)
   ##  print ('start')
     pred = theano.function([], output_layer.get_output(deterministic=True))
     return  pred()

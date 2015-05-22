@@ -2,7 +2,7 @@ import theano
 import theano.tensor as T
 from theano.tensor.nnet import binary_crossentropy, categorical_crossentropy
 from lasagne.regularization import l2
-
+import lasagne
 def mse(x, t):
     """Calculates the MSE mean across all dimensions, i.e. feature
      dimension AND minibatch dimension.
@@ -68,7 +68,7 @@ class Objective(object):
         :returns:
             - output : loss expressions
         """
-        network_output = self.input_layer.get_output(input, **kwargs)
+        network_output = lasagne.layers.get_output(self.input_layer, input, **kwargs)
         if target is None:
             target = self.target_var
         if aggregation not in self._valid_aggregation:

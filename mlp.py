@@ -5,7 +5,6 @@ from skimage import *
 import glob
 import numpy as np
 from numpy import *
-from pandas.io.parsers import read_csv
 from sklearn.utils import shuffle
 from lasagne import *
 from lasagne.updates import adagrad
@@ -23,55 +22,23 @@ import itertools
 from load_data import load_data, print_prediction
 import sys
 sys.stdout = open('log.txt', 'w')
+from sklearn.cross_validation import KFold
 
 def float32(x):
     return np.cast['float32'](x)
 
-def tonum(s):
-    t = {
-        'airplane' : 1,
-        'automobile' : 2,
-        'bird' : 3,
-        'cat' : 4,
-        'deer' : 5,
-        'dog' : 6,
-        'frog' : 7,
-        'horse' : 8,
-        'ship' : 9,
-        'truck' : 10
-    }
-    return t[s]
-
-def tostr(s):
-    t = {
-        1 : 'airplane',
-        2 : 'automobile',
-        3 : 'bird',
-        4 : 'cat',
-        5 : 'deer',
-        6 : 'dog',
-        7 : 'frog',
-        8 : 'horse',
-        9 : 'ship',
-        10 : 'truck'
-    }
-    return t[s+1]
 
 
 
-NTRAIN = 100
+
+NTRAIN = 350
 NTEST = 200
 EPOCHS = 10
 
 pathes = ["train/%s.png" %  (i) for i in range(1, NTRAIN+1)]
-X, X_hog = load_data(pathes)
+X, X_hog, y = load_data(pathes)
 
-_y = read_csv('trainLabels.csv', ',').label.apply(tonum).values
-y = np.zeros((len(X), 10))
-for i in xrange(len(X)):
-    y[i, _y[i]-1] = float32(1)
 
-y = float32(y)
 
 
 
@@ -99,25 +66,34 @@ for l in _layers:
         tlayer = layers.DenseLayer(incoming=inp, num_units=l.num_units, W=l.W, b=l.b, nonlinearity=l.nonlinearity)
         out = layers.DenseLayer(incoming=tlayer, num_units=Xi.shape[1], nonlinearity=nonlinearities.sigmoid)
         if (l.name == 'afterinput'):
-            fit(lin=inp, lhog = lhog, output_layer=out, X1=X, X_hog=X_hog, y=Xi, eval_size=0.1, num_epochs=100,
-            l_rate_start = 0.01, l_rate_stop = 0.00001, batch_size = 10, l2_strength = 0)
+            fit(lin=inp, lhog = lhog, output_layer=out, X=X, X_hog=X_hog, y=Xi, eval_size=0.1, num_epochs=10,
+            l_rate_start = 0.01, l_rate_stop = 0.00001, batch_size = 10, l2_strength = 0, Flip=False)
         else:
-            fit(lin=inp, lhog = lhog, output_layer = out, X1=Xi, X_hog=X_hog, y=Xi, eval_size=0.1, num_epochs=100,
-            l_rate_start = 0.01, l_rate_stop = 0.00001)
-      #  l.W.set_value(tlayer.W.get_value())
-
-    lin.input_var = X
-    lhog.input_var = X_hog
-    out = theano.function([], l.get_output())
-    Xi = out()
-    shape = l.get_output_shape()
+            fit(lin=inp, lhog = lhog, output_layer = out, X=Xi, X_hog=X_hog, y=Xi, eval_size=0.1, num_epochs=50,
+            l_rate_start = 0.001, l_rate_stop = 0.0001, batch_size = 50, l2_strength = 0, Flip=False)
 
 
 
+    shape = l.output_shape
+    kf = KFold(NTRAIN, 100)
+    Xi = np.empty(tuple(np.append([1], shape[1:])), 'float32')
+    for indices in iter(kf):
+        lin.input_var = theano.shared(X[indices[1]])
+        lhog.input_var = theano.shared(X_hog[indices[1]])
+        out = theano.function([], layers.get_output(l, deterministic=True), on_unused_input='ignore')
+        t=out()
+        Xi = np.concatenate((Xi, out()))
 
-fit(lin, lhog, h5, X, X_hog, y, eval_size=0.1, num_epochs=EPOCHS, l_rate_start = 0.01, l_rate_stop = 0.00001)
+    Xi = Xi[1:]
 
 
-print_prediction (count=NTEST, numiters=10, pred=pred, lin=lin, lhog=lhog, h5=h5)
+
+
+
+fit(lin=lin, lhog=lhog, output_layer=h5, X=X, X_hog=X_hog, y=y, eval_size=0.1, num_epochs=EPOCHS,
+    l_rate_start = 0.01, l_rate_stop = 0.00001, batch_size = 100, l2_strength = 0, Flip=True)
+
+
+print_prediction (count=NTEST, numiters=100, pred=pred, lin=lin, lhog=lhog, output_layer=h5)
 
 
