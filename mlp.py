@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 plt.ion()
 from fit import fit, pred
 import itertools
-from load_data import load_data, print_prediction
+from load_data import data_loader
 import sys
 sys.stdout = open('log.txt', 'w')
 from sklearn.cross_validation import KFold
@@ -29,14 +29,15 @@ def float32(x):
 
 
 
-
-
 NTRAIN = 50000
 NTEST = 200
 EPOCHS = 100
 
+loader = data_loader()
+
+
 pathes = ["train/%s.png" %  (i) for i in range(1, NTRAIN+1)]
-X, X_hog, y = load_data(pathes)
+X, X_hog, y = loader.load_data(pathes)
 
 
 
@@ -94,6 +95,6 @@ fit(lin=lin, lhog=lhog, output_layer=h5, X=X, X_hog=X_hog, y=y, eval_size=0.1, n
     l_rate_start = 0.000001, l_rate_stop = 0.0000001, batch_size = 100, l2_strength = 0, Flip=False)
 
 
-print_prediction (count=NTEST, numiters=1000, pred=pred, lin=lin, lhog=lhog, output_layer=h5)
+loader.print_prediction (count=NTEST, numiters=1000, pred=pred, lin=lin, lhog=lhog, output_layer=h5)
 
 
