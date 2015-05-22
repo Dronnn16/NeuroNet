@@ -44,43 +44,47 @@ def tostr(s):
 
 
 def take_image(path):
-    image = skimage.io.imread(path)
+    return skimage.io.imread(path)
+
+
+def hog_filter(image):
+    hog = skimage.feature.hog(skimage.color.rgb2grey(image))
+    return hog
+
+def reshape_image(image):
     normimage = float32(image/float32(255))
     R =  normimage[:, :, 0]
     G =  normimage[:, :, 1]
     B =  normimage[:, :, 2]
     return np.asarray([R, G, B])
 
+class data_loader(object):
+    def __init__(self):
+        self.p = Pool(16)
 
-def hog_filter(path):
-    image = skimage.io.imread(path)
-    hog = skimage.feature.hog(skimage.color.rgb2grey(image))
-    return hog
+    def load_data (self, pathes, ontest=False):
+        images = self.p.map(take_image, pathes)
+        X = np.asarray(self.p.map(reshape_image, images))
+        X_hog = np.asarray(self.p.map(hog_filter, images))
 
+        y = np.zeros((len(X), 10))
+        if not ontest:
+            _y = read_csv('trainLabels.csv', ',').label.apply(tonum).values
+            for i in xrange(len(X)):
+                y[i, _y[i]-1] = float32(1)
 
-def load_data (pathes, ontest=False):
-    p = Pool(32)
-    X = np.asarray(p.map(take_image, pathes))
-    X_hog = np.asarray(map(p.hog_filter, pathes))
+            y = float32(y)
 
-    y = np.zeros((len(X), 10))
-    if not ontest:
-        _y = read_csv('trainLabels.csv', ',').label.apply(tonum).values
-        for i in xrange(len(X)):
-            y[i, _y[i]-1] = float32(1)
+        return X, X_hog, y
 
-        y = float32(y)
-
-    return X, X_hog, y
-
-def print_prediction (count, numiters, pred, lin, lhog, output_layer):
-    kf = KFold(count, numiters)
-    f = open('ans.txt', 'w')
-    f.write('id,label\n')
-    for indices in iter(kf):
-        pathes = ["test/%s.png" %  (i+1) for i in indices[1]]
-        TEST, TEST_hog, _ = load_data(pathes, True)
-        ANSES = pred (TEST, TEST_hog, lin, lhog, output_layer)
-        for ans, i in zip (ANSES, indices[1]):
-            s = tostr(ans.argmax())
-            f.write('%d,%s\n' % (i+1, s))
+    def print_prediction (self, count, numiters, pred, lin, lhog, output_layer):
+        kf = KFold(count, numiters)
+        f = open('ans.txt', 'w')
+        f.write('id,label\n')
+        for indices in iter(kf):
+            pathes = ["test/%s.png" %  (i+1) for i in indices[1]]
+            TEST, TEST_hog, _ = self.load_data(pathes, True)
+            ANSES = pred (TEST, TEST_hog, lin, lhog, output_layer)
+            for ans, i in zip (ANSES, indices[1]):
+                s = tostr(ans.argmax())
+                f.write('%d,%s\n' % (i+1, s))

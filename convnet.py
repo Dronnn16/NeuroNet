@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 plt.ion()
 from fit import fit, pred
 import itertools
-from load_data import load_data, print_prediction
+from load_data import data_loader
 import sys
 sys.stdout = open('log.txt', 'w')
 from sklearn.cross_validation import KFold
@@ -58,24 +58,15 @@ def tostr(s):
     }
     return t[s+1]
 
+loader = data_loader()
 
-
-NTRAIN = 200
+NTRAIN = 2000
 NTEST = 300000
 EPOCHS = 10
 
 pathes = ["train/%s.png" %  (i) for i in range(1, NTRAIN+1)]
 
-X, X_hog = load_data(pathes)
-
-_y = read_csv('trainLabels.csv', ',').label.apply(tonum).values
-y = np.zeros((len(X), 10))
-for i in xrange(len(X)):
-    y[i, _y[i]-1] = float32(1)
-
-y = float32(y)
-
-
+X, X_hog, y= loader.load_data(pathes)
 
 
 
@@ -83,37 +74,37 @@ y = float32(y)
 lin = layers.InputLayer((None, 3, 32, 32))
 lhog = layers.InputLayer((None, 324))
 
-h1 = layers.Conv2DLayer(incoming=lin, num_filters=50, filter_size=(3,3), name = 'afterinput')
+h1 = layers.Conv2DLayer(incoming=lin, num_filters=50, filter_size=(3,3), name = 'afterinputconv')
 #merge = layers.ConcatLayer([h1, lhog])
-h2 = layers.MaxPool2DLayer(incoming=h1, pool_size=(2,2))
-h3 = layers.Conv2DLayer(incoming=h2, num_filters=100, filter_size=(3,3))
-h4 = layers.MaxPool2DLayer(incoming=h3, pool_size=(2,2))
-h5 = layers.Conv2DLayer(incoming=h4, num_filters=200, filter_size=(2,2))
-h6 = layers.MaxPool2DLayer(incoming=h5, pool_size=(2,2))
+h2 = layers.MaxPool2DLayer(incoming=h1, pool_size=(2,2), name = 'pool')
+h3 = layers.Conv2DLayer(incoming=h2, num_filters=100, filter_size=(3,3), name = 'conv')
+h4 = layers.MaxPool2DLayer(incoming=h3, pool_size=(2,2), name = 'pool')
+h5 = layers.Conv2DLayer(incoming=h4, num_filters=200, filter_size=(2,2), name = 'conv')
+h6 = layers.MaxPool2DLayer(incoming=h5, pool_size=(2,2), name = 'pool')
 h7 = layers.DenseLayer(h6, 100)
 out = layers.DenseLayer(h7, 10, nonlinearity=nonlinearities.softmax)
 
-_layers = [h1, h2, h3, h4]
+_layers = [h1, h2, h3, h4, h5, h6, h7]
 
 
 shape = lin.get_output_shape()
 Xi =  np.asarray([(t.ravel()) for t in X])
 for l in _layers:
-    if (l.name != 'merge'):
+    if (l.name != 'merge' and l.name != 'pool'):
         inp = layers.InputLayer(shape)
 
-        if (l.name == 'conv'):
-            tlayer = layers.DenseLayer(incoming=inp, num_filters=l.num_filters, filter_size=l.filter_size, W=l.W, b=l.b)
+        if ('conv' in l.name):
+            tlayer = layers.Conv2DLayer(incoming=inp, num_filters=l.num_filters, filter_size=l.filter_size, W=l.W, b=l.b)
         else:
             tlayer = layers.DenseLayer(incoming=inp, num_units=l.num_units, W=l.W, b=l.b)
 
         out = layers.DenseLayer(incoming=tlayer, num_units=Xi.shape[1])
-        if (l.name == 'afterinput'):
-            fit(lin=inp, lhog = lhog, output_layer=out, X1=X, X_hog=X_hog, y=Xi, eval_size=0.1, num_epochs=100,
-            l_rate_start = 0.01, l_rate_stop = 0.00001)
+        if ('afterinput' in l.name):
+            fit(lin=inp, lhog = lhog, output_layer=out, X=X, X_hog=X_hog, y=Xi, eval_size=0.1, num_epochs=1,
+            l_rate_start = 0.01, l_rate_stop = 0.00001, batch_size = 100, l2_strength = 0, Flip=False)
         else:
-            fit(lin=inp, lhog = lhog, output_layer = out, X1=Xi, X_hog=X_hog, y=Xi, eval_size=0.1, num_epochs=100,
-            l_rate_start = 0.01, l_rate_stop = 0.00001)
+            fit(lin=inp, lhog = lhog, output_layer=out, X=Xi, X_hog=X_hog, y=Xi, eval_size=0.1, num_epochs=1,
+            l_rate_start = 0.01, l_rate_stop = 0.00001, batch_size = 100, l2_strength = 0, Flip=False)
 
     shape = l.output_shape
     kf = KFold(NTRAIN, 100)
@@ -131,7 +122,7 @@ for l in _layers:
 
 
 fit(lin=lin, lhog=lhog, output_layer=out, X=X, X_hog=X_hog, y=y, eval_size=0.1, num_epochs=EPOCHS,
-    l_rate_start = 0.01, l_rate_stop = 0.00001, batch_size = 100, l2_strength = 0.0001, Flip=True)
+    l_rate_start = 0.01, l_rate_stop = 0.00001, batch_size = 100, l2_strength = 0.0001, Flip=False)
 
 
-print_prediction(count=NTEST, numiters=100, pred=pred, lin=lin, lhog=lhog, output_layer=out)
+loader.print_prediction(count=NTEST, numiters=2, pred=pred, lin=lin, lhog=lhog, output_layer=out)
