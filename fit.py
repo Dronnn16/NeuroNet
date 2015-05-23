@@ -108,12 +108,12 @@ def train(iter_funcs, dataset, ls, batch_size, Flip, p):
        mini-batch has `batch_size` recordings.
     """
 
-    num_batches_train = np.ceil(float32(dataset['num_examples_train']) / float32(batch_size))
-    num_batches_valid = np.ceil(float32(dataset['num_examples_valid']) / float32(batch_size))
+    num_batches_train = np.ceil(float32(dataset['num_examples_train']) / float32(batch_size)).astype(int)
+    num_batches_valid = np.ceil(float32(dataset['num_examples_valid']) / float32(batch_size)).astype(int)
 
     for epoch in itertools.count(1):
         batch_train_losses = []
-        for X_batch, X_hog_batch, y_batch, batch_index in BatchIterator(dataset=dataset, batch_size=batch_size, valid=False, Flip=Flip, p=p):
+        for X_batch, X_hog_batch, y_batch, batch_index in BatchIterator(dataset=dataset, N=num_batches_train, batch_size=batch_size, valid=False, Flip=Flip, p=p):
             batch_train_loss = iter_funcs['train'](X_batch, X_hog_batch, y_batch, ls[epoch-1])
             batch_train_losses.append(batch_train_loss)
             if batch_index>=num_batches_train:
@@ -122,7 +122,7 @@ def train(iter_funcs, dataset, ls, batch_size, Flip, p):
 
         batch_valid_losses = []
         batch_valid_accuracies = []
-        for X_batch, X_hog_batch, y_batch, batch_index in BatchIterator(dataset=dataset, batch_size=batch_size, valid=True, Flip=False, p=p):
+        for X_batch, X_hog_batch, y_batch, batch_index in BatchIterator(dataset=dataset, N=num_batches_valid, batch_size=batch_size, valid=True, Flip=False, p=p):
             batch_valid_loss, batch_valid_accuracy = iter_funcs['valid'](X_batch, X_hog_batch, y_batch)
             batch_valid_losses.append(batch_valid_loss)
             batch_valid_accuracies.append(batch_valid_accuracy)
@@ -149,8 +149,9 @@ def Fliphog(image):
 
 
 
-def BatchIterator(dataset, batch_size, valid, Flip, p):
-    for batch_index in itertools.count(0):
+def BatchIterator(dataset, N, batch_size, valid, Flip, p):
+    batch_indexes = np.random.choice(N, N, replace=False)
+    for batch_index in batch_indexes:
         batch_slice = slice(batch_index * batch_size,
                             (batch_index + 1) * batch_size)
         if valid:
@@ -163,7 +164,7 @@ def BatchIterator(dataset, batch_size, valid, Flip, p):
                 bs = X_batch.shape[0]
                 indices = np.random.choice(bs, bs / 2, replace=False)
                 X_batch[indices] = X_batch[indices, :, :, ::-1]
-                X_hog_batch[indices] = map(Fliphog, X_batch[indices])
+                X_hog_batch[indices] = p.map(Fliphog, X_batch[indices])
         yield X_batch, X_hog_batch, y_batch, batch_index+1
 
 
