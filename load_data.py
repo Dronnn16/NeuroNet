@@ -43,13 +43,17 @@ def tostr(s):
 
 
 
+
+
+
 def take_image(path):
     return skimage.io.imread(path)
 
 
 def hog_filter(image):
-    hog = skimage.feature.hog(skimage.color.rgb2grey(image))
-    return hog
+    hog = skimage.feature.hog(skimage.color.rgb2grey(image), orientations=9,
+                              pixels_per_cell=(8, 8), cells_per_block=(3, 3), visualise=False, normalise=True)
+    return float32(hog)
 
 def reshape_image(image):
     normimage = float32(image/float32(255))
@@ -58,14 +62,24 @@ def reshape_image(image):
     B =  normimage[:, :, 2]
     return np.asarray([R, G, B])
 
+def reshape_image_back(image):
+    backimage = np.empty((32,32,3))
+    backimage[:,:,0] = image[0,:,:]
+    backimage[:,:,1] = image[1,:,:]
+    backimage[:,:,2] = image[2,:,:]
+    return float32(backimage*float32(255))
+
 class data_loader(object):
     def __init__(self):
-        self.p = Pool(16)
+        None#self.p = Pool(16)
+
+    def reshape_images_back(self, images):
+        return map(reshape_image_back, images)
 
     def load_data (self, pathes, ontest=False):
-        images = self.p.map(take_image, pathes)
-        X = np.asarray(self.p.map(reshape_image, images))
-        X_hog = np.asarray(self.p.map(hog_filter, images))
+        images = map(take_image, pathes)
+        X = np.asarray(map(reshape_image, images))
+        X_hog = np.asarray(map(hog_filter, images))
 
         y = np.zeros((len(X), 10))
         if not ontest:

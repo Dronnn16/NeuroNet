@@ -16,7 +16,7 @@ from numpy import *
 import myObjective
 import skimage
 from multiprocessing import Pool
-
+from load_data import reshape_image_back
 BATCH_SIZE = 5
 LEARNING_RATE = 0.001
 MOMENTUM = 0.9
@@ -54,11 +54,24 @@ def load_data(X, X_hog, y, eval_size=0.1):
 
 
 
+def Flipdata(Flip, X_batch):
+    if Flip:
+        bs = X_batch.shape[0]
+        indices = np.random.choice(bs, bs / 2, replace=False)
+        X_batch[indices] = X_batch[indices, :, :, ::-1]
+    return X_batch
 
-
+def Fliphog(Flip, X_batch, X_hog_batch, p):
+    if Flip:
+        bs = X_batch.shape[0]
+        indices = np.random.choice(bs, bs / 2, replace=False)
+        X_batch[indices] = X_batch[indices, :, :, ::-1]
+        images =  p.map(reshape_image_back, X_batch[indices])
+        X_hog_batch[indices] = p.map(skimage.feature.hog, images)
+    return X_hog_batch
 
 def create_iter_functions(inp1, inp2, dataset, output_layer,
-                          batch_size, l2_strength, Flip):
+                          batch_size, l2_strength, Flip, p):
     """Create functions for training, validation and testing to iterate one
        epoch.
     """
@@ -75,12 +88,7 @@ def create_iter_functions(inp1, inp2, dataset, output_layer,
         loss_function=lasagne.objectives.mse, l2_strength = l2_strength)
 
 
-    if Flip:
-        p=Pool(4)
-        bs = X_batch.shape[0]
-        indices = np.random.choice(bs, bs / 2, replace=False)
-        X_batch[indices] = X_batch[indices, :, :, ::-1]
-        X_hog_batch[indices] = p.map(skimage.feature.hog, X_hog_batch[indices])
+
 
 
     inp1.input_var = X_batch
@@ -103,8 +111,8 @@ def create_iter_functions(inp1, inp2, dataset, output_layer,
         [batch_index, learning_rate], loss_train,
         updates=updates,
         givens={
-            X_batch: dataset['X_train'][batch_slice],
-            X_hog_batch: dataset['X_hog_train'][batch_slice],
+            X_batch: Flipdata(Flip, dataset['X_train'][batch_slice]),
+            X_hog_batch: Fliphog(Flip, dataset['X_train'][batch_slice], dataset['X_hog_train'][batch_slice], p),
             y_batch: dataset['y_train'][batch_slice],
         },
         allow_input_downcast=True,
@@ -163,9 +171,9 @@ def train(iter_funcs, dataset, ls, batch_size):
 
 
 def fit(lin, lhog, output_layer, X, X_hog, y, eval_size=0.1, num_epochs=100,
-        l_rate_start = 0.1, l_rate_stop = 0.00001, batch_size=100, l2_strength=0, Flip=True):
+        l_rate_start = 0.1, l_rate_stop = 0.00001, batch_size=100, l2_strength=0, Flip=True, pooler=None):
     dataset = load_data(X, X_hog, y, eval_size)
-    iter_funcs = create_iter_functions(lin, lhog, dataset, output_layer, batch_size, l2_strength, Flip)
+    iter_funcs = create_iter_functions(lin, lhog, dataset, output_layer, batch_size, l2_strength, Flip, pooler)
     ls = np.linspace(l_rate_start, l_rate_stop, num_epochs)
 
 
@@ -195,6 +203,6 @@ def pred (TEST, TEST_hog, lin, lhog, output_layer):
     lin.input_var = theano.shared(TEST)
     lhog.input_var = theano.shared(TEST_hog)
   ##  print ('start')
-    pred = theano.function([], output_layer.get_output(deterministic=True))
+    pred = theano.function([], lasagne.layers.get_output(output_layer, deterministic=True))
     return  pred()
 

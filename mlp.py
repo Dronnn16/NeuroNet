@@ -92,7 +92,7 @@ for l in _layers:
 
 
 fit(lin=lin, lhog=lhog, output_layer=h5, X=X, X_hog=X_hog, y=y, eval_size=0.1, num_epochs=EPOCHS,
-    l_rate_start = 0.000001, l_rate_stop = 0.0000001, batch_size = 100, l2_strength = 0, Flip=False)
+    l_rate_start = 0.000001, l_rate_stop = 0.0000001, batch_size = 100, l2_strength = 0, Flip=False, pooler=loader.p)
 
 
 loader.print_prediction (count=NTEST, numiters=1000, pred=pred, lin=lin, lhog=lhog, output_layer=h5)
