@@ -53,6 +53,7 @@ def take_image(path):
 def hog_filter(image):
     hog = skimage.feature.hog(skimage.color.rgb2grey(image), orientations=9,
                               pixels_per_cell=(8, 8), cells_per_block=(3, 3), visualise=False, normalise=True)
+
     return float32(hog)
 
 def reshape_image(image):

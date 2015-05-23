@@ -16,7 +16,7 @@ from numpy import *
 import myObjective
 import skimage
 from multiprocessing import Pool
-from load_data import reshape_image_back
+from load_data import hog_filter
 BATCH_SIZE = 5
 LEARNING_RATE = 0.001
 MOMENTUM = 0.9
@@ -38,56 +38,29 @@ def load_data(X, X_hog, y, eval_size=0.1):
     X_valid, X_hog_valid, y_valid = X[valid_indices], X_hog[valid_indices], y[valid_indices]
 
     return dict(
-        X_train=theano.shared(lasagne.utils.floatX(X_train)),
-        X_hog_train=theano.shared(lasagne.utils.floatX(X_hog_train)),
-        y_train=T.cast(theano.shared(y_train),  'float32'),
-        X_valid=theano.shared(lasagne.utils.floatX(X_valid)),
-        X_hog_valid=theano.shared(lasagne.utils.floatX(X_hog_valid)),
-        y_valid=T.cast(theano.shared(y_valid), 'float32'),
+        X_train=lasagne.utils.floatX(X_train),
+        X_hog_train=lasagne.utils.floatX(X_hog_train),
+        y_train=y_train,
+        X_valid=lasagne.utils.floatX(X_valid),
+        X_hog_valid=lasagne.utils.floatX(X_hog_valid),
+        y_valid=y_valid,
         num_examples_train=X_train.shape[0],
         num_examples_valid=X_valid.shape[0]
     )
 
 
 
-
-
-
-
-def Flipdata(Flip, X_batch):
-    if Flip:
-        bs = X_batch.shape[0]
-        indices = np.random.choice(bs, bs / 2, replace=False)
-        X_batch[indices] = X_batch[indices, :, :, ::-1]
-    return X_batch
-
-def Fliphog(Flip, X_batch, X_hog_batch, p):
-    if Flip:
-        bs = X_batch.shape[0]
-        indices = np.random.choice(bs, bs / 2, replace=False)
-        X_batch[indices] = X_batch[indices, :, :, ::-1]
-        images =  p.map(reshape_image_back, X_batch[indices])
-        X_hog_batch[indices] = p.map(skimage.feature.hog, images)
-    return X_hog_batch
-
 def create_iter_functions(inp1, inp2, dataset, output_layer,
-                          batch_size, l2_strength, Flip, p):
-    """Create functions for training, validation and testing to iterate one
-       epoch.
-    """
-    batch_index = T.iscalar('batch_index')
-    batch_slice = slice(batch_index * batch_size,
-                    (batch_index + 1) * batch_size)
-    X_batch = dataset['X_train'][batch_slice]
+                          batch_size, l2_strength):
+
+    X_batch = T.cast(theano.shared(lasagne.utils.floatX(dataset['X_train'][0:1])), 'float32')
     X_hog_batch = T.matrix('x1')
-    y_batch = T.matrix('y')
+    y_batch = T.cast(theano.shared(dataset['y_train'][0:1]), 'float32')
 
     learning_rate = T.fscalar('rate')
 
     objective = myObjective.Objective(input_layer=output_layer,
         loss_function=lasagne.objectives.mse, l2_strength = l2_strength)
-
-
 
 
 
@@ -108,24 +81,15 @@ def create_iter_functions(inp1, inp2, dataset, output_layer,
         loss_train, all_params, learning_rate)
 
     iter_train = theano.function(
-        [batch_index, learning_rate], loss_train,
+        [X_batch, X_hog_batch, y_batch, learning_rate], loss_train,
         updates=updates,
-        givens={
-            X_batch: Flipdata(Flip, dataset['X_train'][batch_slice]),
-            X_hog_batch: Fliphog(Flip, dataset['X_train'][batch_slice], dataset['X_hog_train'][batch_slice], p),
-            y_batch: dataset['y_train'][batch_slice],
-        },
         allow_input_downcast=True,
+
         on_unused_input='ignore'
     )
 
     iter_valid = theano.function(
-        [batch_index], [loss_eval, accuracy],
-        givens={
-            X_batch: dataset['X_valid'][batch_slice],
-            X_hog_batch: dataset['X_hog_valid'][batch_slice],
-            y_batch: dataset['y_valid'][batch_slice],
-        },
+        [X_batch, X_hog_batch, y_batch], [loss_eval, accuracy],
         on_unused_input='ignore'
     )
 
@@ -136,28 +100,34 @@ def create_iter_functions(inp1, inp2, dataset, output_layer,
     )
 
 
-def train(iter_funcs, dataset, ls, batch_size):
+
+
+
+def train(iter_funcs, dataset, ls, batch_size, Flip, p):
     """Train the model with `dataset` with mini-batch training. Each
        mini-batch has `batch_size` recordings.
     """
 
-    num_batches_train = dataset['num_examples_train'] // batch_size
-    num_batches_valid = dataset['num_examples_valid'] // batch_size
+    num_batches_train = np.ceil(float32(dataset['num_examples_train']) / float32(batch_size))
+    num_batches_valid = np.ceil(float32(dataset['num_examples_valid']) / float32(batch_size))
 
     for epoch in itertools.count(1):
         batch_train_losses = []
-        for b in range(num_batches_train):
-            batch_train_loss = iter_funcs['train'](b, ls[epoch-1])
+        for X_batch, X_hog_batch, y_batch, batch_index in BatchIterator(dataset=dataset, batch_size=batch_size, valid=False, Flip=Flip, p=p):
+            batch_train_loss = iter_funcs['train'](X_batch, X_hog_batch, y_batch, ls[epoch-1])
             batch_train_losses.append(batch_train_loss)
-
+            if batch_index>=num_batches_train:
+                break;
         avg_train_loss = np.mean(batch_train_losses)
 
         batch_valid_losses = []
         batch_valid_accuracies = []
-        for b in range(num_batches_valid):
-            batch_valid_loss, batch_valid_accuracy = iter_funcs['valid'](b)
+        for X_batch, X_hog_batch, y_batch, batch_index in BatchIterator(dataset=dataset, batch_size=batch_size, valid=True, Flip=False, p=p):
+            batch_valid_loss, batch_valid_accuracy = iter_funcs['valid'](X_batch, X_hog_batch, y_batch)
             batch_valid_losses.append(batch_valid_loss)
             batch_valid_accuracies.append(batch_valid_accuracy)
+            if batch_index>=num_batches_valid:
+                break;
 
         avg_valid_loss = np.mean(batch_valid_losses)
         avg_valid_accuracy = np.mean(batch_valid_accuracies)
@@ -170,17 +140,47 @@ def train(iter_funcs, dataset, ls, batch_size):
         }
 
 
+
+def Fliphog(image):
+    bimage = np.empty((32,32,3))
+    bimage[:,:,0] = image[0,:,:]
+    bimage[:,:,1] = image[1,:,:]
+    return hog_filter(np.round(bimage*255))
+
+
+
+def BatchIterator(dataset, batch_size, valid, Flip, p):
+    for batch_index in itertools.count(0):
+        batch_slice = slice(batch_index * batch_size,
+                            (batch_index + 1) * batch_size)
+        if valid:
+            X_batch, X_hog_batch, y_batch = dataset['X_valid'][batch_slice], dataset['X_hog_valid'][batch_slice], dataset['y_valid'][batch_slice]
+        else:
+            X_batch = dataset['X_train'][batch_slice]
+            X_hog_batch=dataset['X_hog_train'][batch_slice]
+            y_batch=dataset['y_train'][batch_slice]
+            if Flip:
+                bs = X_batch.shape[0]
+                indices = np.random.choice(bs, bs / 2, replace=False)
+                X_batch[indices] = X_batch[indices, :, :, ::-1]
+                X_hog_batch[indices] = map(Fliphog, X_batch[indices])
+        yield X_batch, X_hog_batch, y_batch, batch_index+1
+
+
+
+
+
 def fit(lin, lhog, output_layer, X, X_hog, y, eval_size=0.1, num_epochs=100,
-        l_rate_start = 0.1, l_rate_stop = 0.00001, batch_size=100, l2_strength=0, Flip=True, pooler=None):
+        l_rate_start = 0.1, l_rate_stop = 0.00001, batch_size=100, l2_strength=0, Flip=True, p=None):
     dataset = load_data(X, X_hog, y, eval_size)
-    iter_funcs = create_iter_functions(lin, lhog, dataset, output_layer, batch_size, l2_strength, Flip, pooler)
+    iter_funcs = create_iter_functions(lin, lhog, dataset, output_layer, batch_size, l2_strength)
     ls = np.linspace(l_rate_start, l_rate_stop, num_epochs)
 
 
     print("Starting training...")
     now = time.time()
     try:
-        for epoch in train(iter_funcs, dataset, ls, batch_size):
+        for epoch in train(iter_funcs, dataset, ls, batch_size, Flip, p):
             print("Epoch {} of {} took {:.3f}s".format(
                 epoch['number'], num_epochs, time.time() - now))
             now = time.time()
