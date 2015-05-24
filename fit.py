@@ -145,7 +145,8 @@ def Fliphog(image):
     bimage = np.empty((32,32,3))
     bimage[:,:,0] = image[0,:,:]
     bimage[:,:,1] = image[1,:,:]
-    return hog_filter(np.round(bimage*255))
+    bimage[:,:,2] = image[2,:,:]	
+    return hog_filter(np.round(bimage*float32(255)))
 
 
 
@@ -164,7 +165,7 @@ def BatchIterator(dataset, N, batch_size, valid, Flip, p):
                 bs = X_batch.shape[0]
                 indices = np.random.choice(bs, bs / 2, replace=False)
                 X_batch[indices] = X_batch[indices, :, :, ::-1]
-                X_hog_batch[indices] = p.map(Fliphog, X_batch[indices])
+                X_hog_batch[indices] = map(Fliphog, X_batch[indices])
         yield X_batch, X_hog_batch, y_batch, batch_index+1
 
 

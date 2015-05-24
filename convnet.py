@@ -30,6 +30,7 @@ def float32(x):
 	
 loader = data_loader()
 
+NTRAIN = 154
 NTEST = 300000
 EPOCHS = 100
 
@@ -46,6 +47,7 @@ lhog = layers.InputLayer((None, X_hog.shape[1]))
 h1 = layers.Conv2DLayer(incoming=lin, num_filters=100, filter_size=(3,3), name = 'afterinputconv')
 addconv = layers.Conv2DLayer(incoming=h1, num_filters=150, filter_size=(2,2), name = 'conv')
 h2 = layers.MaxPool2DLayer(incoming=addconv, pool_size=(2,2), name = 'pool')
+h3 = layers.Conv2DLayer(incoming=h2, num_filters=150, filter_size=(5,5), name = 'conv')
 h4 = layers.MaxPool2DLayer(incoming=h3, pool_size=(2,2), name = 'pool')
 h5 = layers.Conv2DLayer(incoming=h4, num_filters=100, filter_size=(2,2), name = 'conv')
 h6 = layers.MaxPool2DLayer(incoming=h5, pool_size=(2,2), name = 'pool')
@@ -54,6 +56,7 @@ h8 = layers.MaxPool2DLayer(incoming=h7, pool_size=(2,2), name = 'pool')
 h9 = layers.ReshapeLayer(h4, ([0], -1))
 p = layers.DenseLayer(h4, 100)
 merge = layers.ConcatLayer([h9, lhog])
+h10 = layers.DenseLayer(merge, 100)
 out = layers.DenseLayer(h10, 10, nonlinearity=nonlinearities.softmax)
 
 _layers = [h1, h2, h3, h4, h5, h6, h7]
@@ -94,6 +97,7 @@ for l in _layers:
 
 
 fit(lin=lin, lhog=lhog, output_layer=out, X=X, X_hog=X_hog, y=y, eval_size=0.1, num_epochs=EPOCHS,
+    l_rate_start = 0.02, l_rate_stop = 0.0001, batch_size = 100, l2_strength = 0.00005, Flip=True, p=None)
 
 
 loader.print_prediction(count=NTEST, numiters=1000, pred=pred, lin=lin, lhog=lhog, output_layer=out)
